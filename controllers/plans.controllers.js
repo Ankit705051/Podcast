@@ -1,4 +1,4 @@
-import { Plane } from "../models/plane.models.js";
+import { Plane } from "../models/plan.models.js";
 
 // getAllPlanes
 export const getAllPlanes = async (req, res) => {
@@ -71,7 +71,7 @@ export const createPlane = async (req, res) => {
     }
 }
 
-// updatePlane (Admin only)
+// updatePlane
 export const updatePlane = async (req, res) => {
     try {
         const { id } = req.params;
@@ -81,8 +81,6 @@ export const updatePlane = async (req, res) => {
         if (!plane) {
             return res.status(404).json({ message: "Plan not found" });
         }
-        
-        // Check if name is being changed and if new name already exists
         if (name && name !== plane.name) {
             const existingPlane = await Plane.findOne({ name });
             if (existingPlane) {
@@ -112,7 +110,6 @@ export const updatePlane = async (req, res) => {
     }
 }
 
-// deletePlane (Admin only)
 export const deletePlane = async (req, res) => {
     try {
         const { id } = req.params;
@@ -121,8 +118,6 @@ export const deletePlane = async (req, res) => {
         if (!plane) {
             return res.status(404).json({ message: "Plan not found" });
         }
-        
-        // Soft delete by setting isActive to false
         plane.isActive = false;
         await plane.save();
         
