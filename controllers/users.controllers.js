@@ -4,14 +4,23 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import crypto from "crypto";
 import path from "path";
+
 // register controller
 export const registerController = async (req, res) => {
     try {
-        const { userName, name, email, password } = req.body;
+        const { userName, name, email, password, role } = req.body;
         
-        if (!userName || !name || !email || !password) {
+        if (!userName || !name || !email || !password || !role) {
             return res.status(400).json({
                 message: "Please fill all fields"
+            });
+        }
+
+        // Validate role
+        const validRoles = ["user", "host", "admin"];
+        if (!validRoles.includes(role)) {
+            return res.status(400).json({
+                message: "Invalid role. Must be user, host, or admin"
             });
         }
 
@@ -21,36 +30,37 @@ export const registerController = async (req, res) => {
                 message: "User already exists"
             });
         }
-        const verificationToken=crypto.randomBytes(32).toString("hex");
+        const verificationToken = crypto.randomBytes(32).toString("hex");
 
         const newUser = new User({
             userName,
             name,
             email,
             password,
+            role,
             verificationToken 
         });
 
         await newUser.save();
         
         const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "1d" });
-        try{
-            const transporter=nodemailer.createTransport({
-                host:process.env.MAIL_HOST,
-                port:process.env.MAIL_PORT,
-                auth:{
-                    user:process.env.MAIL_USERNAME,
-                    pass:process.env.MAIL_PASSWORD,
+        try {
+            const transporter = nodemailer.createTransport({
+                host: process.env.MAIL_HOST,
+                port: process.env.MAIL_PORT,
+                auth: {
+                    user: process.env.MAIL_USERNAME,
+                    pass: process.env.MAIL_PASSWORD,
                 }
-            })
-            const verifyUrl=`${process.env.BASE_URI}/api/v1/users/verify/${newUser.verificationToken}`; 
+            });
+            const verifyUrl = `${process.env.BASE_URI}/api/v1/users/verify/${newUser.verificationToken}`; 
             await transporter.sendMail({
-                from:process.env.MAIL_USERNAME,
-                to:newUser.email,
-                subject:"Verify your email address",
-                text:`Please click on the link to verify your email address: ${verifyUrl}`,
-            })
-        }catch(error){
+                from: process.env.MAIL_USERNAME,
+                to: newUser.email,
+                subject: "Verify your email address",
+                text: `Please click on the link to verify your email address: ${verifyUrl}`,
+            });
+        } catch(error) {
             console.log("Email sending failed:", error);
         }
         
@@ -62,7 +72,7 @@ export const registerController = async (req, res) => {
                 name: newUser.name,
                 email: newUser.email,
                 role: newUser.role,
-                avatar:newUser.avatar,
+                avatar: newUser.avatar,
             }, 
             token 
         });
@@ -268,8 +278,7 @@ export const updateUser=async (req,res)=>{
         if(!user){
             return res.status(404).json({message:"User not found"});
         }
-        
-        // Update fields if provided
+
         if(name) user.name = name;
         if(email) user.email = email;
         if(bio) user.bio = bio;

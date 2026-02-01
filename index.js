@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import connectDb from "./database/db.js";
 import userRoutes from "./routes/users.routes.js";
+import planRoutes from "./routes/plans.routes.js";
 dotenv.config();
 
 const app=express();
@@ -23,6 +24,7 @@ app.get("/",(req,res)=>{
     res.send("Podcast Server");
 })
 app.use("/api/v1/users",userRoutes);
+app.use("/api/v1/plans", planRoutes);
 app.listen(PORT,()=>
     console.log(`Server running on port ${PORT}`)
 );
