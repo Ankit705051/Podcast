@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const planeSchema = new mongoose.Schema({
+const planSchema = new mongoose.Schema({
     name: {
         type: String,
         required: true,
@@ -43,4 +43,4 @@ const planeSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-export const Plane = mongoose.model("Plane", planeSchema);
+export const Plan = mongoose.model("Plan", planSchema);
