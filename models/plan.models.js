@@ -43,4 +43,4 @@ const planSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-export const Plan = mongoose.model("Plan", planSchema);
+export const Plane = mongoose.model("Plane", planeSchema);
