@@ -4,9 +4,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import connectDb from "./database/db.js";
+
+dotenv.config();
+
 import userRoutes from "./routes/users.routes.js";
 import planRoutes from "./routes/plans.routes.js";
-dotenv.config();
+import subscriptionRoutes from "./routes/subscription.routes.js";
+import paymentRoutes from "./routes/payments.routes.js";
+import webhookRoutes from "./routes/webhook.routes.js";
 
 const app=express();
 app.use(express.json());
@@ -25,6 +30,9 @@ app.get("/",(req,res)=>{
 })
 app.use("/api/v1/users",userRoutes);
 app.use("/api/v1/plans", planRoutes);
+app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/webhooks", webhookRoutes);
 app.listen(PORT,()=>
     console.log(`Server running on port ${PORT}`)
 );

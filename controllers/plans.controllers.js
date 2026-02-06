@@ -1,9 +1,9 @@
-import { Plane } from "../models/plan.models.js";
+import { Plan } from "../models/plan.models.js";
 
 // getAllPlanes
 export const getAllPlanes = async (req, res) => {
     try {
-        const planes = await Plane.find({ isActive: true }).sort({ price: 1 });
+        const planes = await Plan.find({ isActive: true }).sort({ price: 1 });
         res.status(200).json({
             success: true,
             planes
@@ -18,7 +18,7 @@ export const getAllPlanes = async (req, res) => {
 export const getPlaneById = async (req, res) => {
     try {
         const { id } = req.params;
-        const plane = await Plane.findById(id);
+        const plane = await Plan.findById(id);
         
         if (!plane) {
             return res.status(404).json({ message: "Plan not found" });
@@ -39,16 +39,16 @@ export const createPlane = async (req, res) => {
     try {
         const { name, description, price, duration, features, storage_quota_mb, max_podcasts } = req.body;
         
-        if (!name || !description || !price || !duration || !features) {
+        if (!name || !description || !price || !duration || !features || !storage_quota_mb) {
             return res.status(400).json({ message: "Please fill all required fields" });
         }
         
-        const existingPlane = await Plane.findOne({ name });
+        const existingPlane = await Plan.findOne({ name });
         if (existingPlane) {
             return res.status(400).json({ message: "Plan with this name already exists" });
         }
         
-        const newPlane = new Plane({
+        const newPlane = new Plan({
             name,
             description,
             price,
@@ -77,12 +77,12 @@ export const updatePlane = async (req, res) => {
         const { id } = req.params;
         const { name, description, price, duration, features, storage_quota_mb, max_podcasts, isActive } = req.body;
         
-        const plane = await Plane.findById(id);
+        const plane = await Plan.findById(id);
         if (!plane) {
             return res.status(404).json({ message: "Plan not found" });
         }
         if (name && name !== plane.name) {
-            const existingPlane = await Plane.findOne({ name });
+            const existingPlane = await Plan.findOne({ name });
             if (existingPlane) {
                 return res.status(400).json({ message: "Plan with this name already exists" });
             }
@@ -114,7 +114,7 @@ export const deletePlane = async (req, res) => {
     try {
         const { id } = req.params;
         
-        const plane = await Plane.findById(id);
+        const plane = await Plan.findById(id);
         if (!plane) {
             return res.status(404).json({ message: "Plan not found" });
         }

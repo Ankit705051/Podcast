@@ -15,8 +15,6 @@ export const registerController = async (req, res) => {
                 message: "Please fill all fields"
             });
         }
-
-        // Validate role
         const validRoles = ["user", "host", "admin"];
         if (!validRoles.includes(role)) {
             return res.status(400).json({
@@ -152,6 +150,45 @@ export const login=async (req,res)=>{
             message:"User logged in successfully"
         })
         
+        // Get user's subscription after login
+        try {
+            const { Subscription } = await import("../models/subscriptions.models.js");
+            const { Plan } = await import("../models/plan.models.js");
+            
+            const subscription = await Subscription.findOne({ 
+                user: user._id,
+                is_active: true,
+                status: "active"
+            }).populate('plan');
+            
+            if (subscription) {
+                res.status(200).json({
+                    success:true,
+                    token,
+                    user:{
+                        id:user._id,
+                        userName:user.userName,
+                        name:user.name,
+                        email:user.email,
+                        role:user.role,
+                        avatar:user.avatar,
+                        currentSubscription: {
+                            planName: subscription.plan.name,
+                            planPrice: subscription.plan.price,
+                            planFeatures: subscription.plan.features,
+                            status: subscription.status,
+                            endDate: subscription.endDate,
+                            daysRemaining: Math.ceil((subscription.endDate - new Date()) / (1000 * 60 * 60 * 24))
+                        }
+                    },
+                    message:"User logged in successfully"
+                });
+            }
+        } catch (subError) {
+            console.log("Error fetching subscription:", subError);
+            // Still return login success even if subscription fetch fails
+        }
+        
     }
     catch(error){
         console.log(error);
@@ -201,9 +238,29 @@ export const getUser=async (req,res)=>{
             })
         }
         
+        // Get user's current subscription
+        const { Subscription } = await import("../models/subscriptions.models.js");
+        const { Plan } = await import("../models/plan.models.js");
+        
+        const subscription = await Subscription.findOne({ 
+            user: user._id,
+            is_active: true,
+            status: "active"
+        }).populate('plan');
+        
         res.status(200).json({
             success:true,
-            user
+            user: {
+                ...user.toObject(),
+                currentSubscription: subscription ? {
+                    planName: subscription.plan.name,
+                    planPrice: subscription.plan.price,
+                    planFeatures: subscription.plan.features,
+                    status: subscription.status,
+                    endDate: subscription.endDate,
+                    daysRemaining: Math.ceil((subscription.endDate - new Date()) / (1000 * 60 * 60 * 24))
+                } : null
+            }
         });
     }
     catch(error){
