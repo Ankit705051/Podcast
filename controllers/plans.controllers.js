@@ -1,12 +1,12 @@
 import { Plan } from "../models/plan.models.js";
 
-// getAllPlanes
+// getAllPlans
 export const getAllPlans = async (req, res) => {
     try {
-        const planes = await Plane.find({ isActive: true }).sort({ price: 1 });
+        const plans = await Plan.find({ isActive: true }).sort({ price: 1 });
         res.status(200).json({
             success: true,
-            planes
+            plans
         });
     } catch (error) {
         console.log(error);
@@ -15,10 +15,10 @@ export const getAllPlans = async (req, res) => {
 }
 
 // getPlaneById
-export const getPlanById = async (req, res) => {
+export const getPlaneById = async (req, res) => {
     try {
         const { id } = req.params;
-        const plane = await Plane.findById(id);
+        const plan = await Plan.findById(id);
         
         if (!plan) {
             return res.status(404).json({ message: "Plan not found" });
@@ -26,7 +26,7 @@ export const getPlanById = async (req, res) => {
         
         res.status(200).json({
             success: true,
-            plane
+            plan
         });
     } catch (error) {
         console.log(error);
@@ -34,8 +34,8 @@ export const getPlanById = async (req, res) => {
     }
 }
 
-// createPlane (Admin only)
-export const createPlan = async (req, res) => {
+// createPlane
+export const createPlane = async (req, res) => {
     try {
         const { name, description, price, duration, features, storage_quota_mb, max_podcasts } = req.body;
         
@@ -43,12 +43,12 @@ export const createPlan = async (req, res) => {
             return res.status(400).json({ message: "Please fill all required fields" });
         }
         
-        const existingPlane = await Plane.findOne({ name });
-        if (existingPlane) {
+        const existingPlan = await Plan.findOne({ name });
+        if (existingPlan) {
             return res.status(400).json({ message: "Plan with this name already exists" });
         }
         
-        const newPlane = new Plane({
+        const newPlan = new Plan({
             name,
             description,
             price,
@@ -63,7 +63,7 @@ export const createPlan = async (req, res) => {
         res.status(201).json({
             success: true,
             message: "Plan created successfully",
-            plane: newPlan
+            plan: newPlan
         });
     } catch (error) {
         console.log(error);
@@ -72,37 +72,25 @@ export const createPlan = async (req, res) => {
 }
 
 // updatePlane
-export const updatePlan = async (req, res) => {
+export const updatePlane = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, price, duration, features, storage_quota_mb, max_podcasts, isActive } = req.body;
+        const updateData = req.body;
         
-        const plane = await Plane.findById(id);
-        if (!plane) {
+        const plan = await Plan.findByIdAndUpdate(
+            id, 
+            updateData, 
+            { new: true, runValidators: true }
+        );
+        
+        if (!plan) {
             return res.status(404).json({ message: "Plan not found" });
         }
-        if (name && name !== plane.name) {
-            const existingPlane = await Plane.findOne({ name });
-            if (existingPlane) {
-                return res.status(400).json({ message: "Plan with this name already exists" });
-            }
-            plane.name = name;
-        }
-        
-        if (description) plan.description = description;
-        if (price !== undefined) plan.price = price;
-        if (duration !== undefined) plan.duration = duration;
-        if (features) plan.features = features;
-        if (storage_quota_mb !== undefined) plan.storage_quota_mb = storage_quota_mb;
-        if (max_podcasts !== undefined) plan.max_podcasts = max_podcasts;
-        if (isActive !== undefined) plan.isActive = isActive;
-        
-        await plan.save();
         
         res.status(200).json({
             success: true,
             message: "Plan updated successfully",
-            plane
+            plan
         });
     } catch (error) {
         console.log(error);
@@ -114,8 +102,8 @@ export const deletePlan = async (req, res) => {
     try {
         const { id } = req.params;
         
-        const plane = await Plane.findById(id);
-        if (!plane) {
+        const plan = await Plan.findById(id);
+        if (!plan) {
             return res.status(404).json({ message: "Plan not found" });
         }
         plan.isActive = false;
