@@ -112,13 +112,13 @@ export const verifyUser=async (req,res)=>{
 //login
 export const login=async (req,res)=>{
     try{
-        const{email,password, userName}=req.body;
+        const{email,password, userName}=req.body || {};
         if(!password || (!email && !userName)){
             return res.status(400).json({
                 message:"Please provide password and either email or username"
             })
         }
-        const user=await User.findOne({$or:[{email},{userName}]});
+        const user = await User.findOne({ $or: [{ email }, { userName }] });
         if(!user){
             return res.status(404).json({
                 message:"User not found",

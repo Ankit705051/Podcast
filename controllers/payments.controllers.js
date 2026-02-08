@@ -5,12 +5,22 @@ import { Plan } from "../models/plan.models.js";
 // createPayment (for subscription upgrades/new purchases)
 export const createPayment = async (req, res) => {
     try {
-        const { user_id, plan_id, amount, payment_gateway, payment_status, transactionId, payment_date, purpose, subscription_id, failure_reason, paidAt } = req.body;
+        const { user_id, plan_id, amount_cents, currency, payment_gateway, payment_status, transactionId, payment_date, purpose, subscription_id, failure_reason, paidAt } = req.body;
+        
+        // Validate purpose enum value
+        const validPurposes = ["subscription", "one_time", "upgrade", "renewal"];
+        if (!validPurposes.includes(purpose)) {
+            return res.status(400).json({
+                success: false,
+                message: `Invalid purpose. Must be one of: ${validPurposes.join(', ')}`
+            });
+        }
         
         const payment = await Payment.create({
-            user: user_id,
-            plan: plan_id,
-            amount,
+            user_id: user_id,
+            plan_id: plan_id,
+            amount_cents,
+            currency: currency || "USD",
             payment_gateway,
             payment_status,
             transactionId,
@@ -40,10 +50,10 @@ export const createPayment = async (req, res) => {
 export const processSubscriptionPayment = async (req, res) => {
     try {
         const userId = req.user._id;
-        const { planId, paymentMethod } = req.body;
+        const { plan_id, paymentMethod } = req.body;
         
         // Get plan details
-        const plan = await Plan.findById(planId);
+        const plan = await Plan.findById(plan_id);
         if (!plan) {
             return res.status(404).json({ message: "Plan not found" });
         }
@@ -64,14 +74,15 @@ export const processSubscriptionPayment = async (req, res) => {
         
         // Create payment record
         const payment = await Payment.create({
-            user: userId,
-            plan: planId,
-            amount: finalAmount,
+            user_id: userId,
+            plan_id: plan_id,
+            amount_cents: finalAmount * 100, // Convert to cents
+            currency: "USD",
             payment_gateway: paymentMethod,
             payment_status: "pending",
             transactionId: `txn_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             payment_date: new Date(),
-            purpose: currentSubscription ? "subscription_upgrade" : "new_subscription",
+            purpose: currentSubscription ? "upgrade" : "subscription",
             subscription_id: currentSubscription?._id,
             paidAt: null
         });
@@ -88,7 +99,7 @@ export const processSubscriptionPayment = async (req, res) => {
                 // Update or create subscription
                 if (currentSubscription) {
                     await Subscription.findByIdAndUpdate(currentSubscription._id, {
-                        plan: planId,
+                        plan: plan_id,
                         status: "active",
                         is_active: true,
                         endDate: new Date(Date.now() + plan.duration * 24 * 60 * 60 * 1000),
@@ -97,7 +108,7 @@ export const processSubscriptionPayment = async (req, res) => {
                 } else {
                     await Subscription.create({
                         user: userId,
-                        plan: planId,
+                        plan: plan_id,
                         status: "active",
                         is_active: true,
                         startDate: new Date(),
@@ -138,8 +149,8 @@ export const getPaymentStatus = async (req, res) => {
         const { transactionId } = req.params;
         
         const payment = await Payment.findOne({ transactionId })
-            .populate('user', 'userName email')
-            .populate('plan', 'name price features');
+            .populate('user_id', 'userName email')
+            .populate('plan_id', 'name price features');
         
         if (!payment) {
             return res.status(404).json({ message: "Payment not found" });
@@ -149,7 +160,7 @@ export const getPaymentStatus = async (req, res) => {
             success: true,
             payment: {
                 transactionId: payment.transactionId,
-                amount: payment.amount,
+                amount_cents: payment.amount_cents,
                 status: payment.payment_status,
                 plan: payment.plan,
                 paymentDate: payment.payment_date,
@@ -169,8 +180,8 @@ export const getUserPaymentHistory = async (req, res) => {
     try {
         const userId = req.user._id;
         
-        const payments = await Payment.find({ user: userId })
-            .populate('plan', 'name price')
+        const payments = await Payment.find({ user_id: userId })
+            .populate('plan_id', 'name price')
             .sort({ payment_date: -1 });
         
         res.status(200).json({
@@ -194,8 +205,8 @@ export const getAllPayments = async (req, res) => {
         if (status) filter.payment_status = status;
         
         const payments = await Payment.find(filter)
-            .populate('user', 'userName email')
-            .populate('plan', 'name price')
+            .populate('user_id', 'userName email')
+            .populate('plan_id', 'name price')
             .sort({ payment_date: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -233,17 +244,17 @@ export const getPaymentAnalytics = async (req, res) => {
         
         const totalRevenue = await Payment.aggregate([
             { $match: { payment_status: "completed", ...dateFilter } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
+            { $group: { _id: null, total: { $sum: "$amount_cents" } } }
         ]);
         
         const paymentStats = await Payment.aggregate([
             { $match: dateFilter },
-            { $group: { _id: "$payment_status", count: { $sum: 1 }, total: { $sum: "$amount" } } }
+            { $group: { _id: "$payment_status", count: { $sum: 1 }, total: { $sum: "$amount_cents" } } }
         ]);
         
         const planRevenue = await Payment.aggregate([
             { $match: { payment_status: "completed", ...dateFilter } },
-            { $group: { _id: "$plan", count: { $sum: 1 }, revenue: { $sum: "$amount" } } },
+            { $group: { _id: "$plan", count: { $sum: 1 }, revenue: { $sum: "$amount_cents" } } },
             { $lookup: { from: "plans", localField: "_id", foreignField: "_id", as: "planInfo" } },
             { $unwind: "$planInfo" }
         ]);

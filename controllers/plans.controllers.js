@@ -1,7 +1,7 @@
 import { Plan } from "../models/plan.models.js";
 
 // getAllPlans
-export const getAllPlans = async (req, res) => {
+export const getAllPlanes = async (req, res) => {
     try {
         const plans = await Plan.find({ isActive: true }).sort({ price: 1 });
         res.status(200).json({
@@ -14,8 +14,8 @@ export const getAllPlans = async (req, res) => {
     }
 }
 
-// getPlaneById
-export const getPlaneById = async (req, res) => {
+// getPlanById
+export const getPlanById = async (req, res) => {
     try {
         const { id } = req.params;
         const plan = await Plan.findById(id);
@@ -35,7 +35,7 @@ export const getPlaneById = async (req, res) => {
 }
 
 // createPlane
-export const createPlane = async (req, res) => {
+export const createPlanes = async (req, res) => {
     try {
         const { name, description, price, duration, features, storage_quota_mb, max_podcasts } = req.body;
         
@@ -72,7 +72,7 @@ export const createPlane = async (req, res) => {
 }
 
 // updatePlane
-export const updatePlane = async (req, res) => {
+export const updatePlanes = async (req, res) => {
     try {
         const { id } = req.params;
         const updateData = req.body;
@@ -98,7 +98,7 @@ export const updatePlane = async (req, res) => {
     }
 }
 
-export const deletePlan = async (req, res) => {
+export const deletePlanes = async (req, res) => {
     try {
         const { id } = req.params;
         

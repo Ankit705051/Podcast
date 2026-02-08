@@ -1,4 +1,4 @@
-import stripe from '../config/stripe.js';
+import {stripe} from '../config/stripe.js';
 import { Payment } from '../models/payments.models.js';
 import { Subscription } from '../models/subscriptions.models.js';
 import { Plan } from '../models/plan.models.js';
@@ -61,7 +61,7 @@ async function handlePaymentSuccess(session) {
                 is_active: true
             });
             
-            console.log(`Subscription activated for user ${payment.user}`);
+            console.log(`Subscription activated for user ${payment.user_id}`);
         }
         
     } catch (error) {
@@ -92,20 +92,20 @@ async function handleRecurringPaymentSuccess(invoice) {
             
             // Create payment record
             await Payment.create({
-                user: subscription.user,
-                plan: subscription.plan,
-                amount: invoice.amount_paid / 100, // Convert from cents
+                user_id: subscription.user,
+                plan_id: subscription.plan,
+                amount_cents: invoice.amount_paid, // Already in cents
                 payment_gateway: 'stripe',
                 payment_status: 'completed',
                 transactionId: invoice.payment_intent,
                 payment_date: new Date(),
-                purpose: 'recurring_subscription',
+                purpose: 'renewal', // ✅ Valid enum value
                 subscription_id: subscription._id,
                 paidAt: new Date(),
                 stripe_invoice_id: invoice.id
             });
             
-            console.log(`Subscription extended for user ${subscription.user}`);
+            console.log(`Subscription extended for user ${subscription.user_id}`);
         }
         
     } catch (error) {
@@ -140,7 +140,7 @@ async function handlePaymentFailed(invoice) {
                 is_active: false
             });
             
-            console.log(`Subscription payment failed for user ${subscription.user}`);
+            console.log(`Subscription payment failed for user ${subscription.user_id}`);
         }
         
     } catch (error) {
@@ -165,7 +165,7 @@ async function handleSubscriptionCancelled(stripeSubscription) {
                 endDate: new Date(stripeSubscription.ended_at * 1000)
             });
             
-            console.log(`Subscription cancelled for user ${subscription.user}`);
+            console.log(`Subscription cancelled for user ${subscription.user_id}`);
         }
         
     } catch (error) {

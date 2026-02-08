@@ -1,7 +1,7 @@
 import { Subscription } from "../models/subscriptions.models.js";
 import { Plan } from "../models/plan.models.js";
 import { Payment } from "../models/payments.models.js";
-import stripe from "../config/stripe.js";
+import {stripe} from "../config/stripe.js";
 
 // create free subscription
 export const createFreeSubscription = async (req, res) => {

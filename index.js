@@ -1,11 +1,11 @@
-import express from "express";
 import dotenv from "dotenv";
+dotenv.config();
+
+import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
 import path from "path";
 import connectDb from "./database/db.js";
-
-dotenv.config();
 
 import userRoutes from "./routes/users.routes.js";
 import planRoutes from "./routes/plans.routes.js";
