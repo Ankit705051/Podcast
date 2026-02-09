@@ -12,6 +12,7 @@ import planRoutes from "./routes/plans.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
 import paymentRoutes from "./routes/payments.routes.js";
 import webhookRoutes from "./routes/webhook.routes.js";
+import sessionRoutes from "./routes/sessions.routes.js";
 
 const app=express();
 app.use(express.json());
@@ -33,6 +34,8 @@ app.use("/api/v1/plans", planRoutes);
 app.use("/api/v1/subscriptions", subscriptionRoutes);
 app.use("/api/v1/payments", paymentRoutes);
 app.use("/api/v1/webhooks", webhookRoutes);
+app.use("/api/v1/sessions", sessionRoutes);
 app.listen(PORT,()=>
     console.log(`Server running on port ${PORT}`)
 );
+

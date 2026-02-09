@@ -15,6 +15,7 @@ export const registerController = async (req, res) => {
                 message: "Please fill all fields"
             });
         }
+        
         const validRoles = ["user", "host", "admin"];
         if (!validRoles.includes(role)) {
             return res.status(400).json({
@@ -34,7 +35,7 @@ export const registerController = async (req, res) => {
             userName,
             name,
             email,
-            password,
+            password, 
             role,
             verificationToken 
         });
