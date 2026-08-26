@@ -41,3 +41,7 @@ coverage/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Build directories
+dist/
+rebuilt/dist/
