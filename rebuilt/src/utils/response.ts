@@ -13,6 +13,19 @@ export const sendSuccess = <T>(
   });
 };
 
+export const sendError = <T>(
+  res: Response,
+  statusCode: number,
+  message: string,
+  data?: T
+) => {
+  return res.status(statusCode).json({
+    success: false,
+    message,
+    ...(data !== undefined && { data }),
+  });
+};
+
 export const sendCreated = <T>(
   res: Response,
   message: string,
