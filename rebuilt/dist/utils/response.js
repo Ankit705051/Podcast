@@ -5,6 +5,13 @@ export const sendSuccess = (res, statusCode, message, data) => {
         ...(data !== undefined && { data }),
     });
 };
+export const sendError = (res, statusCode, message, data) => {
+    return res.status(statusCode).json({
+        success: false,
+        message,
+        ...(data !== undefined && { data }),
+    });
+};
 export const sendCreated = (res, message, data) => {
     return sendSuccess(res, 201, message, data);
 };
