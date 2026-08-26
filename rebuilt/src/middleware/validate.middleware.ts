@@ -2,13 +2,24 @@ import type { Request, Response, NextFunction } from "express";
 import { ZodError, type ZodType } from "zod";
 import { sendError } from "../utils/response.js";
 
+type ValidationTarget = "body" | "params" | "query";
+
 export const validate = (
   schema: ZodType,
-  target: "body" | "params" | "query"
+  target: ValidationTarget = "body"
 ) => {
   return (req: Request, res: Response, next: NextFunction) => {
     try {
-      req[target] = schema.parse(req[target]);
+      const dataToValidate = req[target];
+      const validatedData = schema.parse(dataToValidate);
+
+      if (target === "body") {
+        req.body = validatedData;
+      } else if (target === "params") {
+        (req as any).params = validatedData;
+      } else if (target === "query") {
+        (req as any).query = validatedData;
+      }
 
       next();
     } catch (error) {
@@ -23,7 +34,6 @@ export const validate = (
           }))
         );
       }
-
       next(error);
     }
   };

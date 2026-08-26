@@ -6,6 +6,7 @@ import requestIdMiddleware from "./middleware/request-id.middeware.js";
 import { notFoundHandler } from "./middleware/not-found.middleware.js";
 import { errorHandler } from "./middleware/error.middleware.js";
 import healthRoutes from "./routes/health.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 const app = express();
 
 app.use(requestIdMiddleware);
@@ -25,6 +26,9 @@ app.get("/ankit",(req,res)=>{
 
 
 // routes 
+app.use("/api/v1/health", healthRoutes);
+app.use("/api/v1/auth", authRoutes);
+
 
 app.use(notFoundHandler);
 app.use(errorHandler);

@@ -1,9 +1,19 @@
 import { ZodError } from "zod";
 import { sendError } from "../utils/response.js";
-export const validate = (schema, target) => {
+export const validate = (schema, target = "body") => {
     return (req, res, next) => {
         try {
-            req[target] = schema.parse(req[target]);
+            const dataToValidate = req[target];
+            const validatedData = schema.parse(dataToValidate);
+            if (target === "body") {
+                req.body = validatedData;
+            }
+            else if (target === "params") {
+                req.params = validatedData;
+            }
+            else if (target === "query") {
+                req.query = validatedData;
+            }
             next();
         }
         catch (error) {

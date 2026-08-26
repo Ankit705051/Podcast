@@ -1,4 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import { type ZodType } from "zod";
-export declare const validate: (schema: ZodType, target: "body" | "params" | "query") => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
+type ValidationTarget = "body" | "params" | "query";
+export declare const validate: (schema: ZodType, target?: ValidationTarget) => (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>> | undefined;
+export {};
 //# sourceMappingURL=validate.middleware.d.ts.map
