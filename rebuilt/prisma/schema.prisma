@@ -1,12 +1,178 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+model User {
+  id                    String               @id @default(uuid())
+  email                 String               @unique
+  name                  String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+  avatar                String?
+  bio                   String?
+  last_active           DateTime             @default(now())
+  last_login            DateTime             @default(now())
+  last_logout           DateTime             @default(now())
+  location              String?
+  password              String
+  resetPasswordExpire   DateTime?
+  resetPasswordToken    String?
+  role                  Role                 @default(user)
+  social_links          Json?
+  storage_quota_mb      Int                  @default(100)
+  subscription_end_date DateTime?
+  subscription_status   SubscriptionStatus   @default(active)
+  subscription_type     SubscriptionType     @default(free)
+  verificationToken     String?
+  verified              Boolean              @default(false)
+  chats                 Chat[]
+  recordings            RecordingSession[]
+  sessions              Session[]
+  sessionParticipants   SessionParticipant[]
+  subscriptions         Subscription[]
+}
+
+model Session {
+  id                   String               @id @default(uuid())
+  title                String
+  description          String
+  scheduledStart       DateTime
+  scheduledEnd         DateTime
+  isLive               Boolean              @default(false)
+  isRecorded           Boolean              @default(false)
+  isCancelled          Boolean              @default(false)
+  streamPlatform       StreamPlatform       @default(YOUTUBE)
+  streamUrl            String?
+  thumbnailUrl         String?
+  recordingUrl         String?
+  duration             Int                  @default(0)
+  hostId               String
+  maxParticipants      Int                  @default(100)
+  category             SessionCategory      @default(PODCAST)
+  tags                 String[]
+  accessLevel          AccessLevel          @default(PUBLIC)
+  requiresRegistration Boolean              @default(false)
+  registrationCount    Int                  @default(0)
+  actualStartTime      DateTime?
+  actualEndTime        DateTime?
+  viewerCount          Int                  @default(0)
+  chatEnabled          Boolean              @default(true)
+  recordingEnabled     Boolean              @default(true)
+  monetizationEnabled  Boolean              @default(false)
+  allowQuestions       Boolean              @default(true)
+  allowScreenShare     Boolean              @default(false)
+  autoRecord           Boolean              @default(false)
+  leaveSessionMessage  String?
+  agoraChannel         String?              @unique
+  agoraUid             Int?
+  agoraToken           String?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  chats                Chat[]
+  recordings           RecordingSession[]
+  host                 User                 @relation(fields: [hostId], references: [id])
+  participants         SessionParticipant[]
+
+  @@index([hostId])
+  @@index([category])
+  @@index([scheduledStart])
+}
+
+model SessionParticipant {
+  id        String          @id @default(uuid())
+  sessionId String
+  userId    String
+  joinedAt  DateTime        @default(now())
+  leftAt    DateTime?
+  role      ParticipantRole @default(LISTENER)
+  session   Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+}
+
+model Plan {
+  id            String         @id @default(uuid())
+  name          String         @unique
+  description   String
+  price         Int            @default(0)
+  duration      Int            @default(3)
+  features      String[]
+  benefits      String[]
+  maxPodcasts   Int            @default(0)
+  isActive      Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id            String    @id @default(uuid())
+  userId        String
+  planId        String
+  status        Status    @default(PENDING)
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  isActive      Boolean   @default(true)
+  autoRenew     Boolean   @default(true)
+  expiryMessage String?
+  paymentId     String?
+  amount        Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  plan          Plan      @relation(fields: [planId], references: [id])
+  user          User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+}
+
+model RecordingSession {
+  id              String          @id @default(uuid())
+  sessionId       String
+  userId          String
+  startedAt       DateTime        @default(now())
+  endedAt         DateTime?
+  duration        Int             @default(0)
+  title           String
+  status          RecordingStatus @default(PENDING)
+  isPublic        Boolean         @default(false)
+  fileUrl         String?
+  fileSize        Int             @default(0)
+  fileType        String?
+  storageProvider StorageProvider @default(CLOUDINARY)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  session         Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([userId])
+}
+
+model Chat {
+  id        String    @id @default(uuid())
+  sessionId String
+  userId    String
+  message   String
+  type      ChatType  @default(TEXT)
+  edited    Boolean   @default(false)
+  editedAt  DateTime?
+  deleted   Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, createdAt])
+  @@index([userId])
 }
 
 enum Role {
@@ -85,206 +251,3 @@ enum ChatType {
   TEXT
   SYSTEM
 }
-
-model User {
-  id                   String             @id @default(uuid())
-  email                String             @unique
-  name                 String?
-  password             String
-  avatar               String?
-  storage_quota_mb     Int                @default(100)
-  last_active          DateTime           @default(now())
-  last_login           DateTime           @default(now())
-  last_logout          DateTime           @default(now())
-  bio                  String?
-  location             String?
-  verified             Boolean            @default(false)
-  verificationToken    String?
-  resetPasswordToken   String?
-  resetPasswordExpire  DateTime?
-  social_links         Json?
-  role                 Role               @default(user)
-
-  subscription_type    SubscriptionType   @default(free)
-  subscription_status  SubscriptionStatus @default(active)
-  subscription_end_date DateTime?
-
-  sessions             Session[]
-  sessionParticipants  SessionParticipant[]
-  subscriptions        Subscription[]
-  recordings           RecordingSession[]
-  chats                Chat[]
-
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-}
-
-model Session {
-  id                   String          @id @default(uuid())
-  title                String
-  description          String
-  scheduledStart       DateTime
-  scheduledEnd         DateTime
-
-  isLive               Boolean         @default(false)
-  isRecorded           Boolean         @default(false)
-  isCancelled          Boolean         @default(false)
-
-  streamPlatform       StreamPlatform  @default(YOUTUBE)
-  streamUrl            String?
-  thumbnailUrl         String?
-  recordingUrl         String?
-
-  duration             Int             @default(0)
-
-  hostId               String
-  host                 User            @relation(fields: [hostId], references: [id])
-
-  maxParticipants      Int             @default(100)
-  category             SessionCategory @default(PODCAST)
-  tags                 String[]
-  accessLevel          AccessLevel     @default(PUBLIC)
-
-  requiresRegistration Boolean         @default(false)
-  registrationCount    Int             @default(0)
-
-  actualStartTime      DateTime?
-  actualEndTime        DateTime?
-  viewerCount          Int             @default(0)
-
-  chatEnabled          Boolean         @default(true)
-  recordingEnabled     Boolean         @default(true)
-  monetizationEnabled  Boolean         @default(false)
-
-  allowQuestions       Boolean         @default(true)
-  allowScreenShare     Boolean         @default(false)
-  autoRecord           Boolean         @default(false)
-
-  leaveSessionMessage  String?
-
-  agoraChannel         String?         @unique
-  agoraUid             Int?
-  agoraToken           String?
-
-  participants         SessionParticipant[]
-  recordings           RecordingSession[]
-  chats                Chat[]
-
-  createdAt            DateTime        @default(now())
-  updatedAt            DateTime        @updatedAt
-
-  @@index([hostId])
-  @@index([category])
-  @@index([scheduledStart])
-}
-
-model SessionParticipant {
-  id        String          @id @default(uuid())
-  sessionId String
-  userId    String
-
-  joinedAt  DateTime        @default(now())
-  leftAt    DateTime?
-
-  role      ParticipantRole @default(LISTENER)
-
-  session   Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([sessionId, userId])
-  @@index([userId])
-}
-
-model Plan {
-  id           String         @id @default(uuid())
-  name         String         @unique
-  description  String
-  price        Int            @default(0)
-  duration     Int            @default(3)
-  features     String[]
-  benefits     String[]
-  maxPodcasts  Int            @default(0)
-  isActive     Boolean        @default(true)
-
-  subscriptions Subscription[]
-
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-}
-
-model Subscription {
-  id            String   @id @default(uuid())
-  userId        String
-  planId        String
-
-  status        Status   @default(PENDING)
-  startDate     DateTime @default(now())
-  endDate       DateTime?
-  isActive      Boolean  @default(true)
-  autoRenew     Boolean  @default(true)
-  expiryMessage String?
-  paymentId     String?
-  amount        Int      @default(0)
-
-  user          User     @relation(fields: [userId], references: [id])
-  plan          Plan     @relation(fields: [planId], references: [id])
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([userId])
-  @@index([planId])
-  @@index([status])
-}
-
-model RecordingSession {
-  id               String          @id @default(uuid())
-  sessionId        String
-  userId           String
-
-  startedAt        DateTime        @default(now())
-  endedAt          DateTime?
-  duration         Int             @default(0)
-
-  title            String
-  status           RecordingStatus @default(PENDING)
-  isPublic         Boolean         @default(false)
-
-  fileUrl          String?
-  fileSize         Int             @default(0)
-  fileType         String?
-  storageProvider  StorageProvider @default(CLOUDINARY)
-
-  user             User            @relation(fields: [userId], references: [id])
-  session          Session         @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-
-  @@index([sessionId])
-  @@index([userId])
-}
-
-model Chat {
-  id         String   @id @default(uuid())
-  sessionId  String
-  userId     String
-  message    String
-  type       ChatType @default(TEXT)
-
-  edited     Boolean  @default(false)
-  editedAt   DateTime?
-
-  deleted    Boolean  @default(false)
-  deletedAt  DateTime?
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  session    Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([sessionId, createdAt])
-  @@index([userId])
-}
-
