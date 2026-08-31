@@ -14,3 +14,20 @@ const userValidationSchema = z.object({
 
 export type RegisterUserInput = z.infer<typeof userValidationSchema>;
 export const registerSchema = userValidationSchema;
+
+const loginValidationSchema = z.object({
+ email: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .email("Invalid email address")
+      .optional(),
+    password: z
+      .string()
+      .trim()
+      .min(8, "Password must be at least 8 characters")
+      .max(20, "Password cannot exceed 20 characters"),
+  })
+export type LoginUserInput = z.infer<typeof loginValidationSchema>;
+export const loginSchema = loginValidationSchema;
+

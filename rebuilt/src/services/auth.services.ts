@@ -1,8 +1,8 @@
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
-import { hassedPassword } from "../utils/password.js";
-import { generateAccessToken, generateVerificationToken } from "../utils/token.js";
-import type { RegisterUserInput } from "../validation/user.validation.js";
+import { hassedPassword,comparePassword } from "../utils/password.js";
+import { generateAccessToken, generateVerificationToken, cookieOptions } from "../utils/token.js";
+import type { LoginUserInput, RegisterUserInput } from "../validation/user.validation.js";
 import "dotenv/config";
 
 export const registerUser = async (data: RegisterUserInput) => {
@@ -131,3 +131,67 @@ export const initializeDefaultAdmin=async()=>{
       throw error;
     }
   }
+
+
+  export const loginUser=async(data:LoginUserInput)=>{
+     const {email,password}=data;
+     try{
+      const user=await prisma.user.findUnique({
+        where:{
+          email: email!
+        },
+        select:{
+          password:true,
+          id:true,
+          name:true,
+          email:true,
+          role:true,
+          verified:true
+        }
+      })
+      if(!user){
+        throw new AppError("User not found",404,"USER_NOT_FOUND");
+      }
+      console.log("User found:",user);
+      const isPasswordValid = await comparePassword(password, user.password);
+      console.log("Password valid:",isPasswordValid);
+      if(!isPasswordValid){
+        throw new AppError("Invalid password",401,"INVALID_PASSWORD");
+      }
+
+      const token = generateAccessToken(user.id);
+      await prisma.user.update({
+        where:{
+          email: email as string
+        },
+        data:{
+          last_login: new Date()
+        }
+      });
+       const userResponse={
+         id:user.id,
+         name:user.name,
+         email:user.email,
+         role:user.role,
+         verified:user.verified
+       }
+       return {cookie:"token",token,cookieOptions,user:userResponse};
+     }catch (error) {
+    console.error("Login error:", error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError("Login failed due to database error", 500, "DATABASE_ERROR");
+  }
+};
+
+
+export const logoutUser=async()=>{
+  try{
+    return {cookie:"token",token:"",cookieOptions:{httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:'strict'}};
+  }catch(error){
+    console.error("Logout error:",error);
+    throw error;
+  }
+}
+

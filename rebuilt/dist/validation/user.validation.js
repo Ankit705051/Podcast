@@ -10,4 +10,18 @@ const userValidationSchema = z.object({
     role: z.enum(["user", "admin", "host"]).default("user"),
 });
 export const registerSchema = userValidationSchema;
+const loginValidationSchema = z.object({
+    email: z
+        .string()
+        .trim()
+        .toLowerCase()
+        .email("Invalid email address")
+        .optional(),
+    password: z
+        .string()
+        .trim()
+        .min(8, "Password must be at least 8 characters")
+        .max(20, "Password cannot exceed 20 characters"),
+});
+export const loginSchema = loginValidationSchema;
 //# sourceMappingURL=user.validation.js.map

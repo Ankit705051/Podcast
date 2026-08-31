@@ -13,6 +13,8 @@ model User {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   avatar                String?
+
+  googleId              String?
   bio                   String?
   last_active           DateTime             @default(now())
   last_login            DateTime             @default(now())

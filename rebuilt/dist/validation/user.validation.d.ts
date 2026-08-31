@@ -24,5 +24,14 @@ export declare const registerSchema: z.ZodObject<{
         user: "user";
     }>>;
 }, z.core.$strip>;
+declare const loginValidationSchema: z.ZodObject<{
+    email: z.ZodOptional<z.ZodString>;
+    password: z.ZodString;
+}, z.core.$strip>;
+export type LoginUserInput = z.infer<typeof loginValidationSchema>;
+export declare const loginSchema: z.ZodObject<{
+    email: z.ZodOptional<z.ZodString>;
+    password: z.ZodString;
+}, z.core.$strip>;
 export {};
 //# sourceMappingURL=user.validation.d.ts.map
