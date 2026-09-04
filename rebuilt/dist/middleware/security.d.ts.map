@@ -1,1 +1,1 @@
-{"version":3,"file":"security.d.ts","sourceRoot":"","sources":["../../src/middleware/security.ts"],"names":[],"mappings":"AAGA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,SAAS,CAAC;AAEvC,eAAO,MAAM,iBAAiB,QAAM,OAAO,SAgB1C,CAAA"}
+{"version":3,"file":"security.d.ts","sourceRoot":"","sources":["../../src/middleware/security.ts"],"names":[],"mappings":"AAGA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,SAAS,CAAC;AACvC,OAAO,eAAe,CAAA;AACtB,eAAO,MAAM,iBAAiB,QAAM,OAAO,SAgB1C,CAAA"}

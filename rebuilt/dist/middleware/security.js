@@ -1,6 +1,7 @@
 import helmet from "helmet";
 import cors from "cors";
 import express from "express";
+import "dotenv/config";
 export const securityMiddleare = (app) => {
     app.use(helmet({
         contentSecurityPolicy: false,

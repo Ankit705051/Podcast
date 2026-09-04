@@ -2,7 +2,7 @@ import helmet from "helmet"
 import cors from "cors";
 import express from "express";
 import type { Express } from "express";
-
+import "dotenv/config"
 export const securityMiddleare=(app:Express)=>{
     app.use(
         helmet({

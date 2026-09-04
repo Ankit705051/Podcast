@@ -175,7 +175,7 @@ export const initializeDefaultAdmin=async()=>{
          role:user.role,
          verified:user.verified
        }
-       return {cookie:"token",token,cookieOptions,user:userResponse};
+       return {cookie:"token",accessToken:token,cookieOptions,user:userResponse};
      }catch (error) {
     console.error("Login error:", error);
     if (error instanceof AppError) {

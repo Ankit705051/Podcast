@@ -6,9 +6,9 @@ declare const userValidationSchema: z.ZodObject<{
     location: z.ZodOptional<z.ZodString>;
     bio: z.ZodOptional<z.ZodString>;
     role: z.ZodDefault<z.ZodEnum<{
+        user: "user";
         admin: "admin";
         host: "host";
-        user: "user";
     }>>;
 }, z.core.$strip>;
 export type RegisterUserInput = z.infer<typeof userValidationSchema>;
@@ -19,9 +19,9 @@ export declare const registerSchema: z.ZodObject<{
     location: z.ZodOptional<z.ZodString>;
     bio: z.ZodOptional<z.ZodString>;
     role: z.ZodDefault<z.ZodEnum<{
+        user: "user";
         admin: "admin";
         host: "host";
-        user: "user";
     }>>;
 }, z.core.$strip>;
 declare const loginValidationSchema: z.ZodObject<{
