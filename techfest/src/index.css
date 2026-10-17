@@ -1,0 +1,666 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-orbitron: 'Orbitron', -apple-system, sans-serif;
+    --font-rajdhani: 'Rajdhani', -apple-system, sans-serif;
+    --font-space: 'Space Grotesk', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-space);
+    background-color: #050713;
+    color: #e2e8f0;
+  }
+}
+
+
+.galaxy-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+  background: #03040d;
+}
+
+.galaxy-background__nebula,
+.galaxy-background__stars,
+.galaxy-background__planet,
+.galaxy-background__vignette {
+  position: absolute;
+  inset: 0;
+}
+
+.galaxy-background__nebula {
+  background:
+    radial-gradient(ellipse at 72% 27%, rgba(109, 40, 217, .24), transparent 35%),
+    radial-gradient(ellipse at 20% 72%, rgba(8, 145, 178, .18), transparent 40%),
+    radial-gradient(ellipse at 52% 48%, rgba(190, 24, 93, .11), transparent 44%);
+  animation: galaxy-nebula-drift 24s ease-in-out infinite alternate;
+}
+
+.galaxy-background__stars {
+  inset: -50%;
+  background-repeat: repeat;
+  will-change: transform;
+}
+
+.galaxy-background__stars--far {
+  opacity: .55;
+  background-image:
+    radial-gradient(1px 1px at 22px 34px, #d9faff 70%, transparent),
+    radial-gradient(1px 1px at 117px 92px, #c4b5fd 70%, transparent),
+    radial-gradient(1.5px 1.5px at 186px 151px, #fff 70%, transparent);
+  background-size: 220px 190px;
+  animation: galaxy-star-drift 100s linear infinite;
+}
+
+.galaxy-background__stars--near {
+  opacity: .62;
+  background-image:
+    radial-gradient(1.5px 1.5px at 40px 70px, #67e8f9 70%, transparent),
+    radial-gradient(2px 2px at 160px 30px, #fff 70%, transparent),
+    radial-gradient(1px 1px at 105px 145px, #f0abfc 70%, transparent);
+  background-size: 290px 230px;
+  animation: galaxy-star-drift 68s linear infinite reverse;
+}
+
+.galaxy-background__planet {
+  inset: auto auto -31vw -18vw;
+  width: min(74vw, 920px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: .25;
+  background:
+    radial-gradient(circle at 65% 33%, rgba(94, 234, 212, .44), transparent 2px),
+    radial-gradient(ellipse at 64% 34%, rgba(99, 102, 241, .65), rgba(30, 27, 75, .25) 34%, transparent 68%);
+  box-shadow: inset -50px 0 100px rgba(3, 4, 13, .7), 0 0 100px rgba(79, 70, 229, .08);
+}
+
+.galaxy-background__alien {
+  position: absolute;
+  z-index: 1;
+  top: 22%;
+  right: clamp(22px, 9vw, 150px);
+  width: clamp(110px, 14vw, 190px);
+  aspect-ratio: 1;
+  opacity: .92;
+  filter: drop-shadow(0 0 18px rgba(45, 212, 191, .35));
+  animation: alien-float 6s ease-in-out infinite;
+}
+
+.galaxy-background__alien-image {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  mask-image: radial-gradient(ellipse, #000 58%, transparent 76%);
+  -webkit-mask-image: radial-gradient(ellipse, #000 58%, transparent 76%);
+  mix-blend-mode: screen;
+  filter: saturate(1.15) contrast(1.08);
+}
+
+.galaxy-background__orbit {
+  position: absolute;
+  inset: 17% -12% 15%;
+  z-index: 1;
+  border: 1px solid rgba(103, 232, 249, .55);
+  border-radius: 50%;
+  transform: rotate(-24deg) scaleY(.44);
+  box-shadow: 0 0 12px rgba(34, 211, 238, .18);
+}
+
+.galaxy-background__vignette {
+  background: radial-gradient(ellipse at center, transparent 22%, rgba(3, 4, 13, .25) 70%, #03040d 115%);
+}
+
+
+.planet-light-spill {
+  position: fixed;
+  z-index: 11;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: .42;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(ellipse 13% 48% at 23% 81%, rgba(30, 210, 255, .13), transparent 72%),
+    radial-gradient(ellipse 11% 42% at 51% 78%, rgba(222, 75, 255, .11), transparent 72%),
+    radial-gradient(ellipse 14% 50% at 78% 83%, rgba(74, 189, 255, .12), transparent 72%);
+  animation: planet-searchlight-spill 18s ease-in-out infinite alternate;
+}
+
+
+.event-mission-card {
+  border-radius: 0.85rem;
+  border-color: rgba(103, 232, 249, .2);
+  background: #050914;
+}
+
+.university-mission-card {
+  overflow: hidden;
+  border: 1px solid rgba(103, 232, 249, .18);
+  border-radius: .85rem;
+  background: rgba(5, 9, 20, .94);
+}
+
+.university-mission-card__tilt {
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+}
+
+.university-mission-card__cover {
+  position: relative;
+  min-height: 150px;
+  overflow: hidden;
+  background: #07101e;
+}
+
+.university-mission-card__cover img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(.78) brightness(.72);
+  transition: transform 600ms ease, filter 400ms ease;
+}
+
+.university-mission-card:hover .university-mission-card__cover img {
+  transform: scale(1.06);
+  filter: saturate(1) brightness(.86);
+}
+
+.university-mission-card__cover-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(0deg, rgba(3,7,17,.95), rgba(3,7,17,.05) 85%), linear-gradient(90deg, rgba(5,12,24,.3), transparent);
+}
+
+.university-mission-card__cover-copy {
+  position: absolute;
+  inset: auto 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .45rem;
+  text-shadow: 0 2px 10px rgba(0,0,0,.9);
+}
+
+.university-mission-card__warning {
+  position: absolute;
+  top: .75rem;
+  right: .75rem;
+  padding: .3rem .45rem;
+  border: 1px solid rgba(248,113,113,.55);
+  background: rgba(69,10,10,.78);
+  color: #fecaca;
+  font: 700 9px var(--font-mono);
+  letter-spacing: .12em;
+}
+
+@media (min-width: 640px) {
+  .university-mission-card__cover { width: 190px; min-height: 100%; flex: 0 0 190px; }
+  .university-mission-card__cover-copy { inset: auto .85rem .9rem; }
+  .university-mission-card__cover-copy span:last-child { font-size: 12px; }
+}
+
+.event-mission-card__image {
+  filter: saturate(.78) contrast(1.12) brightness(.78);
+  transition: transform 700ms cubic-bezier(.2,.7,.2,1), filter 500ms ease;
+}
+
+.event-mission-card:hover .event-mission-card__image,
+.event-mission-card:focus-within .event-mission-card__image {
+  transform: scale(1.055);
+  filter: saturate(1.05) contrast(1.08) brightness(.92);
+}
+
+.event-mission-card__intel {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+.event-mission-card:hover .event-mission-card__intel,
+.event-mission-card:focus-within .event-mission-card__intel {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.event-mission-card__scan {
+  position: absolute;
+  inset: -80% 0 auto;
+  z-index: 1;
+  height: 32%;
+  opacity: 0;
+  background: linear-gradient(180deg, transparent, rgba(103, 232, 249, .12), rgba(255,255,255,.08), transparent);
+  border-bottom: 1px solid rgba(103, 232, 249, .48);
+  transition: opacity 180ms ease;
+}
+
+.event-mission-card:hover .event-mission-card__scan,
+.event-mission-card:focus-within .event-mission-card__scan {
+  opacity: 1;
+  animation: mission-image-scan 1.6s ease-in-out infinite;
+}
+
+.event-mission-card__ufo {
+  position: absolute;
+  top: 18%;
+  left: -15%;
+  width: 48px;
+  height: 14px;
+  opacity: 0;
+  transition: opacity 180ms ease;
+  filter: drop-shadow(0 0 8px rgba(103,232,249,.85));
+}
+
+.event-mission-card__ufo::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 7px;
+  width: 34px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #d8fbff, #3dd6e6 55%, #087c9e);
+  border: 1px solid rgba(207,250,254,.9);
+}
+
+.event-mission-card__ufo span {
+  position: absolute;
+  top: 0;
+  left: 19px;
+  width: 12px;
+  height: 6px;
+  border-radius: 50% 50% 25% 25%;
+  background: #c4f7ff;
+}
+
+.event-mission-card__ufo::after {
+  content: '';
+  position: absolute;
+  top: 11px;
+  left: 16px;
+  width: 18px;
+  height: 35px;
+  opacity: .75;
+  background: linear-gradient(180deg, rgba(103,232,249,.48), transparent);
+  clip-path: polygon(35% 0, 65% 0, 100% 100%, 0 100%);
+}
+
+.event-mission-card:hover .event-mission-card__ufo,
+.event-mission-card:focus-within .event-mission-card__ufo {
+  opacity: .9;
+  animation: mission-ufo-flyby 2.8s ease-in-out infinite;
+}
+
+@keyframes mission-image-scan {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(390%); }
+}
+
+@keyframes mission-ufo-flyby {
+  0% { transform: translateX(0) translateY(0); }
+  70%, 100% { transform: translateX(290%) translateY(-12px); }
+}
+
+@media (max-width: 767px) {
+  .event-mission-card__intel { opacity: 1; transform: none; }
+  .event-mission-card__scan,
+  .event-mission-card__ufo { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-mission-card__image,
+  .event-mission-card__intel { transition: none; }
+  .event-mission-card:hover .event-mission-card__image,
+  .event-mission-card:focus-within .event-mission-card__image { transform: none; }
+  .event-mission-card__scan,
+  .event-mission-card__ufo { animation: none !important; }
+  .university-mission-card__cover img { transition: none; }
+}
+
+@keyframes planet-searchlight-spill {
+  0% {
+    background-position: 0 0, 0 0, 0 0;
+  }
+  50% {
+    background-position: 8vw -2vh, -5vw 1vh, 6vw -1vh;
+  }
+  100% {
+    background-position: -5vw 1vh, 7vw -2vh, -8vw 0;
+  }
+}
+
+@keyframes galaxy-star-drift {
+  to { transform: translate3d(220px, 190px, 0); }
+}
+
+@keyframes galaxy-nebula-drift {
+  from { transform: translate3d(-1%, 1%, 0) scale(1); }
+  to { transform: translate3d(1%, -1%, 0) scale(1.08); }
+}
+
+@keyframes alien-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(-3deg); }
+  50% { transform: translate3d(-16px, -24px, 0) rotate(4deg); }
+}
+
+@media (max-width: 640px) {
+  .galaxy-background__alien { top: 15%; right: 20px; width: 100px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tilt-card { transform: none !important; transition: none !important; }
+  .galaxy-background__nebula,
+  .galaxy-background__stars,
+  .galaxy-background__alien,
+  .planet-light-spill { animation: none; }
+}
+
+
+.hologram-background {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  isolation: isolate;
+}
+
+.hologram-background__glow,
+.hologram-background__grid,
+.hologram-background__scan {
+  position: absolute;
+  inset: 0;
+}
+
+.hologram-background__glow {
+  background:
+    radial-gradient(ellipse at 14% 18%, rgba(6, 182, 212, 0.13), transparent 38%),
+    radial-gradient(ellipse at 84% 38%, rgba(124, 58, 237, 0.11), transparent 42%),
+    radial-gradient(ellipse at 53% 100%, rgba(236, 72, 153, 0.07), transparent 42%);
+  animation: hologram-drift 18s ease-in-out infinite alternate;
+}
+
+.hologram-background__grid {
+  opacity: 0.19;
+  background-image:
+    linear-gradient(rgba(56, 189, 248, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 189, 248, 0.12) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 18%, black 82%, transparent);
+}
+
+.hologram-background__scan {
+  inset: -100% 0 auto;
+  height: 45%;
+  background: linear-gradient(180deg, transparent, rgba(34, 211, 238, 0.035), transparent);
+  animation: hologram-sweep 12s linear infinite;
+}
+
+@keyframes hologram-drift {
+  from { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  to { transform: translate3d(1.5%, 1%, 0) scale(1.06); }
+}
+
+@keyframes hologram-sweep {
+  to { transform: translateY(330vh); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hologram-background__glow,
+  .hologram-background__scan {
+    animation: none;
+  }
+}
+
+
+.font-orbitron {
+  font-family: var(--font-orbitron);
+}
+
+.font-rajdhani {
+  font-family: var(--font-rajdhani);
+}
+
+.font-space {
+  font-family: var(--font-space);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+
+.neon-glow-cyan {
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.7), 0 0 20px rgba(6, 182, 212, 0.5), 0 0 40px rgba(6, 182, 212, 0.3);
+}
+
+.neon-glow-magenta {
+  text-shadow: 0 0 10px rgba(236, 72, 153, 0.7), 0 0 20px rgba(236, 72, 153, 0.5), 0 0 40px rgba(236, 72, 153, 0.3);
+}
+
+.neon-glow-purple {
+  text-shadow: 0 0 10px rgba(168, 85, 247, 0.7), 0 0 20px rgba(168, 85, 247, 0.5), 0 0 40px rgba(168, 85, 247, 0.3);
+}
+
+.box-glow-cyan {
+  box-shadow: 0 0 25px -5px rgba(6, 182, 212, 0.4), inset 0 0 15px -3px rgba(6, 182, 212, 0.2);
+}
+
+.box-glow-magenta {
+  box-shadow: 0 0 25px -5px rgba(236, 72, 153, 0.4), inset 0 0 15px -3px rgba(236, 72, 153, 0.2);
+}
+
+.box-glow-purple {
+  box-shadow: 0 0 25px -5px rgba(168, 85, 247, 0.4), inset 0 0 15px -3px rgba(168, 85, 247, 0.2);
+}
+
+
+.cyber-panel {
+  background: rgba(10, 15, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.cyber-panel-magenta {
+  background: rgba(18, 10, 28, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(236, 72, 153, 0.25);
+}
+
+
+.scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%, 
+    rgba(0, 0, 0, 0.25) 50%
+  ), linear-gradient(
+    90deg,
+    rgba(255, 0, 0, 0.03),
+    rgba(0, 255, 0, 0.01),
+    rgba(0, 0, 255, 0.03)
+  );
+  background-size: 100% 3px, 6px 100%;
+  pointer-events: none;
+}
+
+
+.cyber-grid {
+  background-image: 
+    linear-gradient(to right, rgba(56, 189, 248, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(56, 189, 248, 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+
+@keyframes glitch-anim {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+.animate-glitch {
+  animation: glitch-anim 2s infinite ease-in-out;
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(1000%);
+    opacity: 0;
+  }
+}
+
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #050713;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #06b6d4, #a855f7);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #22d3ee, #ec4899);
+}
+
+
+.hologram-shimmer {
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    rgba(6, 182, 212, 0.15) 30%,
+    rgba(236, 72, 153, 0.25) 50%,
+    rgba(168, 85, 247, 0.2) 70%,
+    transparent 100%
+  );
+  background-size: 200% 200%;
+}
+
+
+.background-scan {
+  animation: background-scan 12s linear infinite;
+}
+
+@keyframes background-scan {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+
+  10%,
+  90% {
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(100vh);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .background-scan {
+    animation: none;
+    display: none;
+  }
+}
+
+
+
+.transit-stars {
+  background-image:
+    radial-gradient(1px 1px at 10% 20%, rgba(165, 243, 252, .9) 50%, transparent 100%),
+    radial-gradient(2px 2px at 70% 30%, rgba(232, 121, 249, .7) 50%, transparent 100%),
+    radial-gradient(1px 1px at 40% 80%, rgba(103, 232, 249, .8) 50%, transparent 100%),
+    radial-gradient(1px 1px at 85% 65%, rgba(255, 255, 255, .6) 50%, transparent 100%);
+  background-size: 230px 190px, 310px 270px, 180px 220px, 260px 240px;
+  animation: alien-star-drift 18s linear infinite;
+}
+
+@keyframes alien-star-drift {
+  from { background-position: 0 0, 0 0, 0 0, 0 0; }
+  to { background-position: 230px 190px, -310px 270px, 180px -220px, -260px -240px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transit-stars {
+    animation: none;
+  }
+}
+
+
+
+
+.cinematic-scene {
+  isolation: isolate;
+}
+
+.cinematic-art {
+  will-change: transform;
+  filter: saturate(1.12) contrast(1.06);
+}
+
+.cinematic-scanlines {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(0, 240, 255, 0.045) 4px
+  );
+  mix-blend-mode: screen;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-art {
+    transform: none !important;
+  }
+
+  .cinematic-scanlines {
+    display: none;
+  }
+}

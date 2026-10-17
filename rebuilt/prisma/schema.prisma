@@ -44,16 +44,16 @@ model Session {
   description          String
   scheduledStart       DateTime
   scheduledEnd         DateTime
-  isLive               Boolean              @default(false)
   isRecorded           Boolean              @default(false)
-  isCancelled          Boolean              @default(false)
   streamPlatform       StreamPlatform       @default(YOUTUBE)
+  status               SessionStatus        @default(SCHEDULED)
   streamUrl            String?
   thumbnailUrl         String?
   recordingUrl         String?
   duration             Int                  @default(0)
   hostId               String
   maxParticipants      Int                  @default(100)
+  type                 SessionType          @default(ONE_TO_ONE)
   category             SessionCategory      @default(PODCAST)
   tags                 String[]
   accessLevel          AccessLevel          @default(PUBLIC)
@@ -69,9 +69,7 @@ model Session {
   allowScreenShare     Boolean              @default(false)
   autoRecord           Boolean              @default(false)
   leaveSessionMessage  String?
-  agoraChannel         String?              @unique
-  agoraUid             Int?
-  agoraToken           String?
+  mediaProvider        MediaProvider        @default(WEBRTC_P2P)
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   chats                Chat[]
@@ -226,6 +224,13 @@ enum ParticipantRole {
   LISTENER
   MODERATOR
 }
+enum SessionStatus {
+  SCHEDULED
+  WAITING
+  ACTIVE
+  ENDED
+  CANCELLED
+}
 
 enum Status {
   ACTIVE
@@ -252,4 +257,16 @@ enum ChatType {
   IMAGE
   TEXT
   SYSTEM
+}
+enum SessionType {
+  ONE_TO_ONE
+  GROUP
+  LIVE_EVENT
+}
+
+enum MediaProvider {
+  WEBRTC_P2P
+  MEDIASOUP
+  AGORA
+  OTHER
 }
