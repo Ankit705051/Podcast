@@ -1,29 +1,54 @@
-import { createChat } from "../services/chat.services.js";
-import asyncHandler from "../utils/asyncHandler.js";
-import { sendCreated } from "../utils/response.js";
 import type { Request, Response } from "express";
+import asyncHandler from "../utils/asyncHandler.js";
+import type { JwtUser } from "../types/auth.js";
+import {
+  getChatHistory,
+  saveMessage,
+  deleteMessage,
+} from "../services/chat.services.js";
+import type { ChatType } from "@prisma/client";
 
-export const createChatController = asyncHandler(async (req: Request, res: Response) => {
-   const{message,type,userId}=req.body;
-   const {sessionId}=req.params;
-  
-   if(!sessionId || Array.isArray(sessionId)){
-    throw new Error("Invalid session ID");
-   }
+const currentUser = (req: Request): JwtUser => req.user as JwtUser;
 
-   const chat=await createChat(
-    userId,
-    sessionId,
-    message,
-    type
-   );
-   
-   return  res.status(201).json({
-    success: true,
-    message: "Chat created successfully",
-    data: chat
-   });
-});
+export const getChatHistoryController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const messages = await getChatHistory(req.params.sessionId as string);
+    return res.status(200).json({
+      success: true,
+      data: {
+        messages,
+        total: messages.length,
+      },
+    });
+  }
+);
 
+export const saveMessageController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { sessionId, message, type } = req.body as {
+      sessionId: string;
+      message: string;
+      type?: ChatType;
+    };
+    const saved = await saveMessage(
+      currentUser(req).id,
+      sessionId,
+      message,
+      type
+    );
+    return res.status(201).json({
+      success: true,
+      data: saved,
+    });
+  }
+);
 
-
+export const deleteMessageController = asyncHandler(
+  async (req: Request, res: Response) => {
+    await deleteMessage(req.params.messageId as string, currentUser(req).id);
+    return res.status(200).json({
+      success: true,
+      message: "Message deleted successfully",
+    });
+  }
+);

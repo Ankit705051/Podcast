@@ -1,6 +1,5 @@
 import { AccessLevel, SessionCategory, ParticipantRole,SessionType,SessionStatus,MediaProvider } from "@prisma/client";
 
-//data required for create a sesssion 
 export interface CreateSessionData {
     title: string;
     description: string;
@@ -25,8 +24,6 @@ export interface CreateSessionData {
     status?: SessionStatus;
 }
 
-
-// data required for update a session 
 export interface UpdateSessionData {
     title?: string;
     description?: string;
@@ -51,38 +48,29 @@ export interface UpdateSessionData {
     status?: SessionStatus;
 }
 
-// data required for joining a session
 export interface JoinSessionData {
     sessionId: string;
     userId: string;
     role: ParticipantRole;
 }
 
-// data required for leaving a session
 export interface LeaveSessionData {
     sessionId: string;
     userId: string;
 }
-
-// data required for starting a session
 export interface StartSessionData {
     sessionId: string;
     userId: string;
 }
-
-// data required for ending a session
 export interface EndSessionData {
     sessionId: string;
     userId: string;
 }
 
-// data required for cancelling a session
 export interface CancelSessionData {
     sessionId: string;
     userId: string;
 }
-
-// participant information returned by session service
 export interface ParticipantInfo {
     id: string;
     userId: string;
@@ -91,8 +79,6 @@ export interface ParticipantInfo {
     isActive: boolean;
     leftAt?: Date;
 }
-
-// public session information
 export interface PublicSessionInfo {
     id: string;
     title: string;
@@ -126,4 +112,50 @@ export interface joinSessionResponse {
     isActive: boolean;
     participantCount: number;
     maxParticipants?: number;
+}
+
+export interface CreateSessionInput {
+    title: string;
+    description: string;
+    scheduledStart: Date;
+    scheduledEnd: Date;
+    streamPlatform: import("@prisma/client").StreamPlatform;
+    streamUrl: string;
+    thumbnailUrl: string;
+    category: SessionCategory;
+    tags: string[];
+    accessLevel: AccessLevel;
+    maxParticipants: number;
+    requiresRegistration: boolean;
+}
+
+export interface UpdateSessionInput {
+    title?: string;
+    description?: string;
+    scheduledStart?: Date;
+    scheduledEnd?: Date;
+    streamPlatform?: import("@prisma/client").StreamPlatform;
+    streamUrl?: string;
+    thumbnailUrl?: string;
+    category?: SessionCategory;
+    tags?: string[];
+    accessLevel?: AccessLevel;
+    maxParticipants?: number;
+    requiresRegistration?: boolean;
+    chatEnabled?: boolean;
+    recordingEnabled?: boolean;
+    allowQuestions?: boolean;
+    allowScreenShare?: boolean;
+    autoRecord?: boolean;
+    recordingUrl?: string;
+    leaveSessionMessage?: string;
+}
+
+export interface SessionQueryInput {
+    category?: SessionCategory;
+    accessLevel?: AccessLevel;
+    page: number;
+    limit: number;
+    search?: string;
+    upcomingOnly: boolean;
 }
