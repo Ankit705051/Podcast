@@ -13,13 +13,12 @@ export const validate = (
       const dataToValidate = req[target];
       const validatedData = schema.parse(dataToValidate);
 
-      if (target === "body") {
-        req.body = validatedData;
-      } else if (target === "params") {
-        (req as any).params = validatedData;
-      } else if (target === "query") {
-        (req as any).query = validatedData;
-      }
+      Object.defineProperty(req, target, {
+        value: validatedData,
+        writable: true,
+        configurable: true,
+        enumerable: true,
+      });
 
       next();
     } catch (error) {

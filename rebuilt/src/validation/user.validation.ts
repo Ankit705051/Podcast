@@ -1,33 +1,102 @@
 import { z } from "zod";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,228}$/;
 
-const userValidationSchema = z.object({
-  name: z.string().min(3, "name must be at least 3 characters").trim().max(50, "name must be at most 50 characters"),
-  email: z.string().regex(emailRegex, "please enter a valid email").trim().email("please enter a valid email"),
-  password: z.string().regex(passwordRegex, "password must contain at least one uppercase letter, one lowercase letter, one digit, one special character, and be 8-228 characters long").trim(),
-  location: z.string().trim().max(100).optional(),
-  bio: z.string().trim().max(500).optional(),
-  role: z.enum(["user", "admin", "host"]).default("user"),
+export const registerSchema = z.object({
+  userName: z
+    .string()
+    .trim()
+    .min(3, "Username must be at least 3 characters long")
+    .max(30, "Username must be at most 30 characters"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Name is required")
+    .max(100, "Name must be at most 100 characters"),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(emailRegex, "Please enter a valid email")
+    .email("Please enter a valid email"),
+  password: z
+    .string()
+    .min(6, "Password must be at least 6 characters long")
+    .max(100, "Password cannot exceed 100 characters"),
+  role: z.enum(["user", "host"]).optional(),
 });
 
-export type RegisterUserInput = z.infer<typeof userValidationSchema>;
-export const registerSchema = userValidationSchema;
+export type RegisterUserInput = z.infer<typeof registerSchema>;
 
-const loginValidationSchema = z.object({
- email: z
+export const loginSchema = z
+  .object({
+    email: z
       .string()
       .trim()
       .toLowerCase()
       .email("Invalid email address")
       .optional(),
-    password: z
+    userName: z
       .string()
       .trim()
-      .min(8, "Password must be at least 8 characters")
-      .max(20, "Password cannot exceed 20 characters"),
+      .min(3, "Username must be at least 3 characters")
+      .optional(),
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters")
+      .max(100, "Password cannot exceed 100 characters"),
   })
-export type LoginUserInput = z.infer<typeof loginValidationSchema>;
-export const loginSchema = loginValidationSchema;
+  .refine((data) => Boolean(data.email || data.userName), {
+    message: "Please provide password and either email or username",
+  });
 
+export type LoginUserInput = z.infer<typeof loginSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(emailRegex, "Invalid email format")
+    .email("Invalid email format"),
+});
+
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(6, "Password must be at least 6 characters long")
+      .max(100, "Password cannot exceed 100 characters"),
+    confPassword: z
+      .string()
+      .min(6, "Confirm password must be at least 6 characters long")
+      .max(100, "Confirm password cannot exceed 100 characters"),
+  })
+  .refine((data) => data.password === data.confPassword, {
+    message: "Password and confirm password must be same",
+    path: ["confPassword"],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
+export const updateUserSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  userName: z.string().trim().min(3).max(30).optional(),
+  email: z.string().trim().toLowerCase().email().optional(),
+  bio: z.string().trim().max(1000).optional(),
+  location: z.string().trim().max(100).optional(),
+
+  settings: z
+    .union([z.record(z.string(), z.unknown()), z.string()])
+    .optional(),
+  currentPassword: z.string().optional(),
+  newPassword: z
+    .string()
+    .min(6, "New password must be at least 6 characters long")
+    .max(100)
+    .optional(),
+});
+
+export type UpdateUserInput = z.infer<typeof updateUserSchema>;

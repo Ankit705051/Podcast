@@ -20,6 +20,37 @@ export const errorHandler = (
         });  
     }
 
+    // malformed JSON / body-parser errors
+    const bodyErr = err as { type?: string; statusCode?: number };
+    if (
+      bodyErr.type === "entity.parse.failed" ||
+      bodyErr.type === "entity.too.large"
+    ) {
+      return res.status(bodyErr.statusCode ?? 400).json({
+        success: false,
+        message:
+          bodyErr.type === "entity.too.large"
+            ? "Request body too large"
+            : "Invalid JSON body",
+        code: "INVALID_BODY",
+      });
+    }
+
+    // transient database connectivity issues (e.g. Neon cold start / timeout)
+    const errName = err instanceof Error ? err.name : "";
+    const errMessage = err instanceof Error ? err.message : "";
+    if (
+      errName === "PrismaClientUnknownRequestError" ||
+      errName === "PrismaClientInitializationError" ||
+      /ETIMEDOUT|P1001|Can't reach database server/i.test(errMessage)
+    ) {
+      return res.status(503).json({
+        success: false,
+        message: "Database temporarily unavailable, please try again",
+        code: "DATABASE_UNAVAILABLE",
+      });
+    }
+
     // zod validation Error
     if(err instanceof ZodError){
         return res.status(400).json({
@@ -61,6 +92,18 @@ export const errorHandler = (
           code: "DATABASE_ERROR",
         });
     }
+  }
+
+  if (err instanceof Error && err.name === "MulterError") {
+    const multerError = err as Error & { code?: string };
+    return res.status(400).json({
+      success: false,
+      message:
+        multerError.code === "LIMIT_FILE_SIZE"
+          ? "File size exceeds the 10MB limit"
+          : multerError.message,
+      code: "UPLOAD_ERROR",
+    });
   }
 
   // unknown error 

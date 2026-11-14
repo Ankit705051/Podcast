@@ -2,11 +2,11 @@ import jwt from "jsonwebtoken";
 import { randomBytes } from "node:crypto";
 import dotenv from "dotenv";
 dotenv.config();
-export const generateAccessToken=(userId:string)=>{
+export const generateAccessToken=(userId:string, expiresIn:jwt.SignOptions["expiresIn"]="1d")=>{
     return jwt.sign(
         {id:userId},
         process.env.JWT_SECRET!,
-        {expiresIn:"1day"}
+        {expiresIn}
     );
 };
 
