@@ -5,15 +5,12 @@ export const validate = (schema, target = "body") => {
         try {
             const dataToValidate = req[target];
             const validatedData = schema.parse(dataToValidate);
-            if (target === "body") {
-                req.body = validatedData;
-            }
-            else if (target === "params") {
-                req.params = validatedData;
-            }
-            else if (target === "query") {
-                req.query = validatedData;
-            }
+            Object.defineProperty(req, target, {
+                value: validatedData,
+                writable: true,
+                configurable: true,
+                enumerable: true,
+            });
             next();
         }
         catch (error) {

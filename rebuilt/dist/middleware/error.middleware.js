@@ -49,6 +49,16 @@ export const errorHandler = (err, req, res, next) => {
                 });
         }
     }
+    if (err instanceof Error && err.name === "MulterError") {
+        const multerError = err;
+        return res.status(400).json({
+            success: false,
+            message: multerError.code === "LIMIT_FILE_SIZE"
+                ? "File size exceeds the 10MB limit"
+                : multerError.message,
+            code: "UPLOAD_ERROR",
+        });
+    }
     // unknown error 
     return res.status(500).json({
         success: false,
