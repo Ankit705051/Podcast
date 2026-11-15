@@ -155,7 +155,6 @@ const Register = () => {
                   <option value="">Select your role</option>
                   <option value="user">👤 User - Join and participate in sessions</option>
                   <option value="host">🎙️ Host - Create and manage sessions</option>
-                  <option value="admin">⚙️ Admin - Full system access</option>
                 </select>
                 <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
                   <ChevronDown className="h-5 w-5 text-gray-400" />

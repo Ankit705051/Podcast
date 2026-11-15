@@ -25,8 +25,6 @@ import {
 
 const getUser = (req: Request): JwtUser => req.user as JwtUser;
 
-// Whiteboard controllers
-
 export const createWhiteboardController = asyncHandler(
   async (req: Request, res: Response) => {
     const { sessionId } = req.params as { sessionId: string };

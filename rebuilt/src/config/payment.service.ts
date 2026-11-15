@@ -3,12 +3,7 @@ import { AppError } from "../utils/AppError.js";
 
 const PAYMENT_SERVICE_URL =
   process.env.PAYMENT_SERVICE_URL || "http://localhost:3002";
-
-// Dev mock: when PAYMENT_SERVICE_MOCK=true, simulate a payment service that
-// instantly marks transactions as paid, so the subscription flow can be
-// tested without running the separate payment microservice.
 const PAYMENT_MOCK = process.env.PAYMENT_SERVICE_MOCK === "true";
-
 export interface PaymentTransactionRequest {
   userId: string;
   amount: number;

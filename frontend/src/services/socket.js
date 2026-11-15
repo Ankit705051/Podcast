@@ -114,6 +114,37 @@ class SocketService {
         this.socket.emit('leave-session', sessionId);
     }
 
+    // Join and wait until the server confirms (it emits 'session-state' only
+    // after the participant check + room join succeed). Prevents the race
+    // where a chat message is sent before join-session finishes processing.
+    joinSessionAndWait(sessionId, timeoutMs = 3000) {
+        return new Promise((resolve) => {
+            if (!this.socket) return resolve(false);
+
+            this._pendingSessionId = sessionId;
+
+            const cleanup = () => {
+                clearTimeout(timer);
+                this.socket?.off('session-state', onState);
+            };
+            const onState = () => {
+                cleanup();
+                resolve(true);
+            };
+            const timer = setTimeout(() => {
+                cleanup();
+                resolve(false);
+            }, timeoutMs);
+
+            this.socket.on('session-state', onState);
+
+            if (this.connected) {
+                this.socket.emit('join-session', sessionId);
+            }
+            // If not connected yet, the 'connect' handler emits the pending join.
+        });
+    }
+
     // ─── Messaging ────────────────────────────────────────────────
     sendMessage(sessionId, message, type = 'text') {
         if (!this.socket || !this.connected) {

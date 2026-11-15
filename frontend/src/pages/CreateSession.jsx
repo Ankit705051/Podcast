@@ -112,7 +112,7 @@ const CreateSession = () => {
       icon: MessageCircle,
       description: 'Interactive question and answer sessions',
       color: 'bg-yellow-500',
-      defaultCategory: 'qa',
+      defaultCategory: 'qna',
       defaultTags: ['qa', 'questions', 'interactive']
     }
   ];

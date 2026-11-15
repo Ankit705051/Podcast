@@ -23,12 +23,17 @@ const ParticipantGrid = ({
   } : null;
 
   // Convert remote streams Map to array of participants
-  const remoteParticipants = Array.from(remoteStreams.values()).map(data => ({
-    uid: data.userId,
-    name: data.userName || 'Unknown',
-    stream: data.stream,
-    isLocal: false
-  }));
+  const remoteParticipants = Array.from(remoteStreams.values()).map(data => {
+    const stream = data.stream;
+    const videoTrack = stream?.getVideoTracks?.()[0];
+    return {
+      uid: data.userId,
+      name: data.userName || 'Unknown',
+      stream,
+      videoTrack,
+      isLocal: false
+    };
+  });
 
   // Combine local and remote participants
   const allParticipants = [

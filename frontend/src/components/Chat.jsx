@@ -22,9 +22,13 @@ const Chat = ({ sessionId, messages: propMessages = [], onSendMessage, onClose, 
             });
         };
  
+        // 'user-typing' fires for both start and stop (isTyping flag);
+        // 'typing-start' alone would leave stale typing indicators.
+        socketService.on('user-typing', handleTyping);
         socketService.on('typing-start', handleTyping);
- 
+
         return () => {
+            socketService.off('user-typing', handleTyping);
             socketService.off('typing-start', handleTyping);
             clearTimeout(typingTimeoutRef.current);
         };
@@ -64,15 +68,22 @@ const Chat = ({ sessionId, messages: propMessages = [], onSendMessage, onClose, 
 
             {/* Messages */}
             <div className="chat-messages">
-                {propMessages.map((msg) => (
-                    <div key={msg._id || msg.id} className={`message ${msg.userId === user?._id ? 'own' : 'other'}`}>
+                {propMessages.map((msg) => {
+                    // Socket payloads send userId as an object; history sends
+                    // it as a string id — handle both.
+                    const senderId = typeof msg.userId === 'object'
+                        ? (msg.userId?._id || msg.userId?.id)
+                        : msg.userId;
+                    return (
+                    <div key={msg._id || msg.id} className={`message ${senderId === user?._id ? 'own' : 'other'}`}>
                         <div className="message-info">
                             <span className="username">{msg.userId?.name || msg.userName || msg.name || 'Unknown'}</span>
                             <span className="time">{new Date(msg.timestamp || msg.createdAt).toLocaleTimeString()}</span>
                         </div>
                         <p className="text-sm">{msg.message}</p>
                     </div>
-                ))}
+                    );
+                })}
 
                 {typingUsers.length > 0 && (
                     <div className="typing-indicator">

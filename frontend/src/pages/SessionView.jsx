@@ -178,6 +178,22 @@ const SessionView = () => {
     console.log('Starting WebRTC session join...');
     setIsJoining(true);
     try {
+      // Register as a session participant first — the socket join and chat
+      // require an active participant record on the backend.
+      try {
+        await sessionAPI.joinSession(sessionId, {});
+      } catch (joinError) {
+        // Already a participant is fine; anything else is fatal.
+        const msg = joinError.response?.data?.message || '';
+        if (!msg.toLowerCase().includes('already')) throw joinError;
+      }
+
+      // The chat socket tried to join the room on page load, before the
+      // participant record existed, and was rejected. Re-join now that the
+      // backend recognizes us as a participant — and wait for the server's
+      // session-state confirmation so chat can't race ahead of the join.
+      await socketService.joinSessionAndWait(sessionId);
+
       // Initialize WebRTC manager
       await webrtcManager.initialize();
       

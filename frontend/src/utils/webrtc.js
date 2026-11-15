@@ -18,6 +18,8 @@ class WebRTCManager {
     this.screenStream = null;
     this.peerConnections = new Map();
     this.remoteStreams = new Map();
+    // ICE candidates that arrive before setRemoteDescription completes
+    this.pendingIceCandidates = new Map();
     this.currentSession = null;
     this.currentUser = null;
     this.userRole = null;
@@ -26,6 +28,10 @@ class WebRTCManager {
 
   // Initialize Socket.io connection
   async initialize() {
+    if (this.socket?.connected) {
+      return this.socket;
+    }
+
     const token = localStorage.getItem('token');
     const socketUrl = process.env.REACT_APP_SOCKET_URL ||
       (process.env.REACT_APP_API_URL
@@ -33,7 +39,7 @@ class WebRTCManager {
         : 'http://localhost:3000');
     this.socket = io(socketUrl, {
       auth: { token },
-      transports: ['websocket']
+      transports: ['polling', 'websocket']
     });
 
     this.setupSocketListeners();
@@ -75,8 +81,12 @@ class WebRTCManager {
       console.log('User joined:', data);
       this.triggerCallback('user-joined', data);
       
-      // If we're a speaker/host, initiate connection with new user
-      if (this.userRole === 'host' || this.userRole === 'speaker') {
+      // Deterministic offerer: the peer with the smaller user id offers.
+      // This prevents both sides creating offers at the same time (glare).
+      if (this.shouldOffer(data.userId)) {
+        this.createPeerConnection(data.userId, data.userName);
+        this.createAndSendOffer(data.userId);
+      } else {
         this.createPeerConnection(data.userId, data.userName);
       }
     });
@@ -89,7 +99,9 @@ class WebRTCManager {
 
     this.socket.on('session-state', (data) => {
       console.log('Session state:', data);
+      this.sessionState = data;
       this.triggerCallback('session-state', data);
+      this.connectToAllPeers();
     });
 
     // Hand raise events
@@ -145,16 +157,21 @@ class WebRTCManager {
 
       console.log(`Joining session ${sessionId} as ${this.userRole}`);
 
-      // Join via socket
+      // Get local media BEFORE joining so peer connections are created with
+      // tracks already attached (single negotiation, no glare).
+      try {
+        await this.getLocalMedia();
+      } catch (mediaError) {
+        // Camera/mic denied — continue as view-only participant.
+        console.warn('Could not get local media, joining without camera:', mediaError);
+      }
+
+      // Join via socket (role hint lets the server assign speaker/moderator)
       this.socket.emit('join-session', {
         sessionId,
+        role: this.userRole,
         token: localStorage.getItem('token')
       });
-
-      // If host or speaker, get local media
-      if (this.userRole === 'host' || this.userRole === 'speaker') {
-        await this.getLocalMedia();
-      }
 
       return true;
     } catch (error) {
@@ -173,7 +190,21 @@ class WebRTCManager {
       
       this.localStream = stream;
       this.triggerCallback('local-stream', stream);
-      
+
+      // Attach local tracks to any peer connections created before the
+      // media stream was ready, then renegotiate (only the deterministic
+      // offerer initiates; the answerer picks up tracks in its next answer).
+      this.peerConnections.forEach((pc, userId) => {
+        this.localStream.getTracks().forEach((track) => {
+          if (!pc.getSenders().some((sender) => sender.track === track)) {
+            pc.addTrack(track, this.localStream);
+          }
+        });
+        if (this.shouldOffer(userId)) {
+          this.createAndSendOffer(userId);
+        }
+      });
+
       return stream;
     } catch (error) {
       console.error('Error getting local media:', error);
@@ -234,19 +265,66 @@ class WebRTCManager {
     }
   }
 
-  // Connect to all peers in session
+  // Create an SDP offer and send it to the remote peer
+  async createAndSendOffer(remoteUserId) {
+    try {
+      const pc = this.peerConnections.get(remoteUserId);
+      if (!pc || !this.currentSession?._id) return;
+      if (pc.signalingState !== 'stable') return;
+
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      this.socket.emit('webrtc-offer', {
+        sessionId: this.currentSession._id,
+        targetUserId: remoteUserId,
+        offer
+      });
+    } catch (error) {
+      console.error('Error creating offer:', error);
+    }
+  }
+
+  // Connect to all peers in session (full mesh, all roles publish media)
   async connectToAllPeers() {
-    // This will be called when we receive session-state
-    // We'll connect to all speakers and host
+    const state = this.sessionState;
+    if (!state) return;
+
+    const selfId = this.currentUser?._id?.toString();
+    const peerIds = [
+      ...(state.speakers || []),
+      ...(state.listeners || []),
+      ...(state.moderators || []),
+    ].filter((id) => id && id.toString() !== selfId);
+
+    for (const userId of peerIds) {
+      if (!this.peerConnections.has(userId)) {
+        this.createPeerConnection(userId, userId);
+      }
+      if (this.shouldOffer(userId)) {
+        await this.createAndSendOffer(userId);
+      }
+    }
+  }
+
+  // Deterministic glare-avoidance: lower user id is the offerer.
+  shouldOffer(remoteUserId) {
+    const selfId = this.currentUser?._id?.toString();
+    if (!selfId) return false;
+    return selfId < remoteUserId.toString();
   }
 
   // Handle WebRTC offer
   async handleOffer(data) {
     try {
       const { fromUserId, fromUserName, offer } = data;
-      
-      const pc = this.createPeerConnection(fromUserId, fromUserName);
+
+      let pc = this.peerConnections.get(fromUserId);
+      if (!pc) {
+        pc = this.createPeerConnection(fromUserId, fromUserName);
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      this.flushIceCandidates(fromUserId, pc);
       
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
@@ -269,23 +347,46 @@ class WebRTCManager {
       
       if (pc) {
         await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        this.flushIceCandidates(fromUserId, pc);
       }
     } catch (error) {
       console.error('Error handling answer:', error);
     }
   }
 
-  // Handle ICE candidate
+  // Handle ICE candidate — queue until the remote description is set,
+  // otherwise addIceCandidate throws and the candidate is lost.
   async handleIceCandidate(data) {
     try {
       const { fromUserId, candidate } = data;
       const pc = this.peerConnections.get(fromUserId);
-      
-      if (pc) {
-        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+
+      if (!pc) return;
+
+      if (!pc.remoteDescription) {
+        const queue = this.pendingIceCandidates.get(fromUserId) || [];
+        queue.push(candidate);
+        this.pendingIceCandidates.set(fromUserId, queue);
+        return;
       }
+
+      await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
       console.error('Error handling ICE candidate:', error);
+    }
+  }
+
+  // Add any ICE candidates that arrived before setRemoteDescription
+  async flushIceCandidates(userId, pc) {
+    const queue = this.pendingIceCandidates.get(userId);
+    if (!queue || queue.length === 0) return;
+    this.pendingIceCandidates.delete(userId);
+    for (const candidate of queue) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Error flushing ICE candidate:', error);
+      }
     }
   }
 
@@ -296,6 +397,7 @@ class WebRTCManager {
       pc.close();
       this.peerConnections.delete(userId);
       this.remoteStreams.delete(userId);
+      this.pendingIceCandidates.delete(userId);
       this.triggerCallback('peer-disconnected', { userId });
     }
   }
@@ -431,6 +533,7 @@ class WebRTCManager {
     
     this.peerConnections.clear();
     this.remoteStreams.clear();
+    this.pendingIceCandidates.clear();
     
     // Leave socket room
     this.socket.emit('leave-session', {

@@ -108,14 +108,6 @@ export const sessionAPI = {
   getSessionRecordings: (id) => api.get(`/recordings/session/${id}`)
 };
 
-// Agora services
-export const agoraAPI = {
-  generateRtcToken: (data) => api.post('/agora/rtc/token', data),
-  generateSessionTokens: (data) => api.post('/agora/session/tokens', data),
-  generateRecordingToken: (data) => api.post('/agora/recording/token', data),
-  validateCredentials: () => api.get('/agora/validate')
-};
-
 // Recording services
 export const recordingAPI = {
   startRecording: (sessionId) => api.post(`/recordings/start/${sessionId}`),

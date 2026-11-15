@@ -22,11 +22,9 @@ import type {
 import "dotenv/config";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
+const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; 
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+
 
 const publicUserSelect = {
   id: true,
@@ -50,7 +48,6 @@ const publicUserSelect = {
 
 type PublicUser = Prisma.UserGetPayload<{ select: typeof publicUserSelect }>;
 
-/** Adds the legacy `_id` alias used by the old backend responses. */
 export const toLegacyUser = <T extends { id: string }>(user: T) => ({
   ...user,
   _id: user.id,
@@ -97,14 +94,12 @@ const getActiveSubscriptionSummary = async (
 const sha256 = (value: string): string =>
   crypto.createHash("sha256").update(value).digest("hex");
 
-// ---------------------------------------------------------------------------
-// Register / verify
-// ---------------------------------------------------------------------------
+
 
 export const registerUser = async (data: RegisterUserInput) => {
   const { userName, name, email, password, role } = data;
 
-  // Delete or reject unverified duplicates (legacy behaviour)
+
   const existingEmailUser = await prisma.user.findUnique({ where: { email } });
   if (existingEmailUser) {
     if (existingEmailUser.verified) {
@@ -169,9 +164,7 @@ export const verifyUserByToken = async (verificationToken: string) => {
   return { verified: true };
 };
 
-// ---------------------------------------------------------------------------
-// Login / logout
-// ---------------------------------------------------------------------------
+
 
 export const loginUser = async (data: LoginUserInput) => {
   const { email, userName, password } = data;
@@ -232,9 +225,7 @@ export const logoutUser = async () => {
   return { success: true };
 };
 
-// ---------------------------------------------------------------------------
-// Get current user
-// ---------------------------------------------------------------------------
+
 
 export const getCurrentUser = async (userId: string) => {
   const user = await prisma.user.findUnique({
@@ -255,16 +246,14 @@ export const getCurrentUser = async (userId: string) => {
   };
 };
 
-// ---------------------------------------------------------------------------
-// Forgot / reset password
-// ---------------------------------------------------------------------------
+
 
 export const forgotPassword = async (data: ForgotPasswordInput) => {
   const { email } = data;
 
   const user = await prisma.user.findUnique({ where: { email } });
 
-  // Always report success to prevent email enumeration
+
   if (!user) {
     return;
   }
@@ -330,9 +319,7 @@ export const resetPassword = async (
   });
 };
 
-// ---------------------------------------------------------------------------
-// Update profile / password / avatar
-// ---------------------------------------------------------------------------
+
 
 export const updateUser = async (
   userId: string,
@@ -395,9 +382,7 @@ export const updateUser = async (
   return { ...updated, _id: updated.id };
 };
 
-// ---------------------------------------------------------------------------
-// Admin helpers (kept for auth.routes.ts admin creation / initialization)
-// ---------------------------------------------------------------------------
+
 
 export const initializeDefaultAdmin = async () => {
   const adminEmail = process.env.ADMIN_EMAIL;

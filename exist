@@ -1,0 +1,33 @@
+[33m8066c99[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m chore(rebuilt): update compiled dist output
+[33me548b8a[m feat(rebuilt): sessions, chat, webinar, interview, payments and WebRTC signaling modules
+[33m01b58ec[m feat(rebuilt): add Prisma schema, migration and dependencies for backend features
+[33mc4d0eca[m feat(rebuilt): improve authentication and validation
+[33mee1ff68[m chore(rebuilt): update dependencies and Prisma schema
+[33mdbf1a10[m Initial commit: Deploy podcast project to GitHub
+[33m2e0863d[m copilot checkpoint: 86c6fa63-2b15-4bf4-b819-e560a36c74b7 @ d52bb9f4-0a1d-4074-88ad-cbc3d46b2bbc
+[33m143d483[m copilot checkpoint: 86c6fa63-2b15-4bf4-b819-e560a36c74b7 @ 59dcf0f9-f2c9-426c-869c-36f71a35538e
+[33m2e40a64[m copilot checkpoint: 86c6fa63-2b15-4bf4-b819-e560a36c74b7 @ 4e2a5fd5-06f5-481e-8f44-e7061a603984
+[33mcf35e3a[m copilot checkpoint: 86c6fa63-2b15-4bf4-b819-e560a36c74b7 @ 85c506b0-690f-4b5d-bdb6-5f5a05bce9f3
+[33mbdb705e[m feat:add socket types
+[33mdbd16e7[m feat:add socket authentication and services
+[33m77d126b[m feat:add chat validation
+[33mdd914f8[m feat:add chat services
+[33me6aa929[m feat:add chat routes
+[33m392de9a[m feat:add creating chat
+[33ma27fd64[m feat: add chat routes and Socket.IO, fix JWT expiration and security
+[33m36e2300[m feat:add login and logout
+[33m878ea32[m fix:add initialize defulat admin and update the auth services and routes
+[33m64206e1[m feat:add hased password and comparePassword functionality
+[33me087f37[m feat:add token gernration
+[33me3e88bc[m feat:add user services
+[33m70aced7[m fix:connecton of db and health check and update body middleware
+[33m22650f8[m feat:add auth routes
+[33mc09f01c[m feat:add update middleware  and and controller and validation
+[33mba8d31e[m update authentication and validation middleware
+[33m51f1f8d[m feat:add error success and created response
+[33m28d57d3[m feat:add validation middleware
+[33m19170f7[m feat:add authentication middleware
+[33m4ba9033[m feat:add role based authorization
+[33m356cd08[m add: type role
+[33m30d96da[m chore: update rebuilt gitignore to exclude build directories
+[33m2ff4c0a[m[33m ([m[1;33mtag: [m[1;33mlegacy-mongoose-backend[m[33m)[m refactor : complete typeScript Prisma backend

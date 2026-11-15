@@ -7,7 +7,6 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
-  // Neon free-tier cold starts can take a while; be patient and keep sockets warm.
   max: 10,
   connectionTimeoutMillis: 20000,
   idleTimeoutMillis: 30000,

@@ -163,7 +163,7 @@ export default function Sessions() {
           <p className="text-muted-foreground">Join live streams or host your own</p>
         </div>
         
-        {user?.role === 'host' && (
+        {(user?.role === 'host' || user?.role === 'admin') && (
           <Button onClick={() => navigate('/create-session')} className="flex items-center gap-2">
             <Plus size={16} /> New Session
           </Button>

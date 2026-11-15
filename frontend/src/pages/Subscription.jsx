@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { subscriptionAPI, planAPI } from '../services/api';
+import { subscriptionAPI, planAPI, paymentAPI } from '../services/api';
 import { 
   CreditCard, 
   CheckCircle, 
@@ -73,12 +73,13 @@ const Subscription = () => {
   const handleUpgradeSubscription = async (planId) => {
     setUpgrading(true);
     try {
-      const response = await subscriptionAPI.createStripeCheckout({ planId });
-      
-      // Redirect to Stripe checkout
-      window.location.href = response.data.url;
+      const response = await paymentAPI.processSubscriptionPayment({ planId });
+      const message = response.data?.message || 'Payment transaction created';
+      toast.success(message);
+      await fetchSubscriptionData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to initiate upgrade');
+      toast.error(error.response?.data?.message || 'Failed to process payment');
+    } finally {
       setUpgrading(false);
     }
   };

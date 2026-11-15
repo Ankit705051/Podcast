@@ -16,9 +16,6 @@ const getJoinedSessions = (socket: Socket): Set<string> => {
   return socket.data.sessions as Set<string>;
 };
 
-// Self-heal: if the socket never completed join-session (race, reconnect,
-// missed emit) but the user is the host or an active participant, join the
-// room lazily so chat still works.
 const ensureSessionMembership = async (
   io: Server,
   socket: Socket,
