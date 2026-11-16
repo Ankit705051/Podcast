@@ -198,30 +198,58 @@ model Chat {
 }
 
 model Payment {
-  id              String        @id @default(uuid())
-  userId          String
-  planId          String?
-  subscriptionId  String?
-  amount          Int           @default(0)
-  currency        String        @default("usd")
-  paymentGateway  String
-  paymentStatus   PaymentStatus @default(PENDING)
-  transactionId   String        @unique
-  paymentDate     DateTime      @default(now())
-  purpose         String
-  paidAt          DateTime?
-  failureReason   String?
-  stripeSessionId String?
-  stripeInvoiceId String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  plan            Plan?         @relation(fields: [planId], references: [id])
-  subscription    Subscription? @relation(fields: [subscriptionId], references: [id])
-  user            User          @relation(fields: [userId], references: [id])
+  id             String  @id @default(uuid())
+  userId         String
+  planId         String?
+  subscriptionId String?
+  amount         Int     @default(0)
+  currency       String  @default("usd")
+
+  paymentStatus PaymentStatus @default(PENDING)
+
+  transactionId String    @unique
+  paymentDate   DateTime  @default(now())
+  purpose       String
+  paidAt        DateTime?
+  failureReason String?
+
+  attempts PaymentAttempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plan         Plan?         @relation(fields: [planId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([subscriptionId])
   @@index([paymentStatus])
+}
+
+model PaymentAttempt {
+  id            String               @id @default(uuid())
+  paymentId     String
+  gateway       PaymentGateway
+  attemptNumber Int
+  status        PaymentAttemptStatus @default(INITIATED)
+
+  providerOrderId   String?
+  providerPaymentId String?
+  checkoutSessionId String?
+  invoiceId         String?
+
+  idempotencyKey String @unique
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+
+  @@unique([paymentId, attemptNumber])
+  @@index([paymentId])
+  @@index([gateway, providerPaymentId])
 }
 
 model Whiteboard {
@@ -397,11 +425,26 @@ enum Status {
   PENDING
 }
 
+enum PaymentAttemptStatus {
+  INITIATED
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
 enum PaymentStatus {
   PENDING
-  COMPLETED
+  PROCESSING
+  SUCCEEDED
   FAILED
+  PARTIALLY_REFUNDED
   REFUNDED
+}
+
+enum PaymentGateway {
+  STRIPE
+  RAZORPAY
+  PAYPAL
 }
 
 enum StorageProvider {

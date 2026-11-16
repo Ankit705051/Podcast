@@ -15,6 +15,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const paymentInclude = {
   plan: { select: { id: true, name: true, price: true, duration: true } },
   subscription: { select: { id: true, status: true, endDate: true } },
+  attempts: {
+    select: {
+      id: true,
+      gateway: true,
+      status: true,
+      attemptNumber: true,
+      providerPaymentId: true,
+    },
+  },
 } as const satisfies Prisma.PaymentInclude;
 
 const userPaymentInclude = {
@@ -29,7 +38,7 @@ const userPaymentInclude = {
 // ---------------------------------------------------------------------------
 
 const extractRemoteStatus = (payload: unknown): string => {
-  if (!payload || typeof payload !== "object") return "";
+  if (!payload || typeof payload !== "object") return "INITIATED";
   const obj = payload as Record<string, unknown>;
 
   for (const key of ["status", "state", "paymentStatus", "payment_status"]) {
@@ -45,7 +54,7 @@ const extractRemoteStatus = (payload: unknown): string => {
     }
   }
 
-  return "";
+  return "INITIATED";
 };
 
 const isPaidStatus = (status: string): boolean => {
@@ -79,12 +88,32 @@ const syncUserSubscription = async (
 // Reads
 // ---------------------------------------------------------------------------
 
-export const getPaymentHistory = async (userId: string) => {
-  return prisma.payment.findMany({
-    where: { userId },
-    include: paymentInclude,
-    orderBy: { paymentDate: "desc" },
-  });
+interface PaymentHistoryOptions{
+  page?:number;
+  limit?:number;
+}
+
+export const getPaymentHistory = async (userId: string,{page = 1, limit = 10}: PaymentHistoryOptions = {}) => {
+  const skip=(page-1)*limit;
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where: { userId },
+      include: paymentInclude,
+      orderBy: { paymentDate: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.payment.count({ where: { userId } }),
+  ]);
+  return {
+    payments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 export const getPaymentStatus = async (
@@ -105,23 +134,43 @@ export const getPaymentStatus = async (
   }
 
   let transactionStatus: PaymentServiceResponse | null = null;
-  try {
-    transactionStatus = await paymentService.getTransactionStatus(transactionId);
-  } catch (error) {
-    console.error(
-      "Payment service status lookup failed:",
-      error instanceof Error ? error.message : error
-    );
+  const lastAttempt = payment.attempts[0];
+  if(lastAttempt?.providerPaymentId){
+    try {
+      transactionStatus = await paymentService.getTransactionStatus(
+        lastAttempt.providerPaymentId
+      );
+    } catch (error) {
+      console.error(
+        "Payment service status lookup failed:",
+        error instanceof Error ? error.message : error
+      );
+    }
   }
 
   return { payment, transactionStatus };
 };
 
-export const getAllPayments = async () => {
-  return prisma.payment.findMany({
-    include: userPaymentInclude,
-    orderBy: { paymentDate: "desc" },
-  });
+export const getAllPayments = async (page = 1, limit = 20) => {
+  const skip = (page - 1) * limit;
+  const [payments, total] = await prisma.$transaction([
+    prisma.payment.findMany({
+      include: userPaymentInclude,
+      orderBy: { paymentDate: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.payment.count(),
+  ]);
+  return {
+    payments,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -178,7 +227,6 @@ export const createPayment = async (
       subscriptionId: data.subscriptionId ?? null,
       amount: data.amount,
       currency: data.currency ?? "usd",
-      paymentGateway: "payment-service",
       paymentStatus: "PENDING",
       transactionId,
       paymentDate: new Date(),
@@ -221,7 +269,6 @@ export const processSubscriptionPayment = async (
       planId: plan.id,
       amount: plan.price,
       currency: "usd",
-      paymentGateway: "payment-service",
       paymentStatus: "PENDING",
       transactionId,
       paymentDate: new Date(),
@@ -287,7 +334,7 @@ export const processSubscriptionPayment = async (
   await prisma.payment.update({
     where: { id: payment.id },
     data: {
-      paymentStatus: "COMPLETED",
+      paymentStatus: "SUCCEEDED",
       paidAt: new Date(),
       subscriptionId: activated.id,
     },
