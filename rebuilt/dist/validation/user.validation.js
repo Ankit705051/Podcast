@@ -1,8 +1,5 @@
 import { z } from "zod";
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-// ---------------------------------------------------------------------------
-// Register (legacy compatible: userName, name, email, password, role user|host)
-// ---------------------------------------------------------------------------
 export const registerSchema = z.object({
     userName: z
         .string()
@@ -26,9 +23,6 @@ export const registerSchema = z.object({
         .max(100, "Password cannot exceed 100 characters"),
     role: z.enum(["user", "host"]).optional(),
 });
-// ---------------------------------------------------------------------------
-// Login (email OR userName + password)
-// ---------------------------------------------------------------------------
 export const loginSchema = z
     .object({
     email: z
@@ -50,9 +44,6 @@ export const loginSchema = z
     .refine((data) => Boolean(data.email || data.userName), {
     message: "Please provide password and either email or username",
 });
-// ---------------------------------------------------------------------------
-// Forgot / reset password
-// ---------------------------------------------------------------------------
 export const forgotPasswordSchema = z.object({
     email: z
         .string()
@@ -76,16 +67,12 @@ export const resetPasswordSchema = z
     message: "Password and confirm password must be same",
     path: ["confPassword"],
 });
-// ---------------------------------------------------------------------------
-// Update profile (multipart: fields + optional avatar file)
-// ---------------------------------------------------------------------------
 export const updateUserSchema = z.object({
     name: z.string().trim().min(1).max(100).optional(),
     userName: z.string().trim().min(3).max(30).optional(),
     email: z.string().trim().toLowerCase().email().optional(),
     bio: z.string().trim().max(1000).optional(),
     location: z.string().trim().max(100).optional(),
-    // settings may arrive as a JSON string when sent via multipart/form-data
     settings: z
         .union([z.record(z.string(), z.unknown()), z.string()])
         .optional(),
