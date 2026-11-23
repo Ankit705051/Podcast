@@ -15,6 +15,7 @@ import Sessions from './pages/Sessions';
 import CreateSession from './pages/CreateSession';
 import SessionView from './pages/SessionView';
 import Recordings from './pages/Recordings';
+import AdminPlans from './pages/AdminPlans';
 
 // Protected Route Component
 const ProtectedRoute = ({ children }) => {
@@ -44,6 +45,23 @@ const PublicRoute = ({ children }) => {
   }
   
   return !isAuthenticated ? children : <Navigate to="/" />;
+};
+
+// Admin-only Route Component
+const AdminRoute = ({ children }) => {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) return <Navigate to="/login" />;
+  if (user?.role !== 'admin') return <Navigate to="/" />;
+  return children;
 };
 
 // Layout Component
@@ -200,6 +218,17 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route
+        path="/admin"
+        element={
+          <AdminRoute>
+            <Layout>
+              <AdminPlans />
+            </Layout>
+          </AdminRoute>
+        }
+      />
+
       {/* Fallback route */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

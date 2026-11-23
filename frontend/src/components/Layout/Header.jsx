@@ -12,7 +12,8 @@ import {
   Settings,
   HeadphonesIcon,
   Video,
-  Download
+  Download,
+  Shield
 } from 'lucide-react';
 
 const Header = () => {
@@ -37,6 +38,10 @@ const Header = () => {
     { name: 'Studio', href: '/studio', icon: Mic },
     { name: 'Subscription', href: '/subscription', icon: CreditCard },
   ];
+
+  if (user?.role === 'admin') {
+    navigation.push({ name: 'Admin', href: '/admin', icon: Shield });
+  }
 
   const userMenu = [
     { name: 'Profile', href: '/profile', icon: User },

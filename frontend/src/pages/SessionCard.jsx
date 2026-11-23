@@ -6,10 +6,10 @@ import { Button } from '../components/Layout/Button';
 import toast from 'react-hot-toast';
 import {
   Calendar, Users, Play, Square, Video, Mic, Eye,
-  Globe, Lock, UserCheck, Share2, Download
+  Globe, Lock, UserCheck, Share2, Download, Trash2
 } from 'lucide-react';
 
-export default function SessionCard({ session, user, onJoin, onLeave, onStart, onEnd }) {
+export default function SessionCard({ session, user, onJoin, onLeave, onStart, onEnd, onDelete }) {
   const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -35,6 +35,10 @@ export default function SessionCard({ session, user, onJoin, onLeave, onStart, o
   const isHost = (session.host_id?._id?.toString() === user._id?.toString()) ||
                (session.host_id?.toString() === user._id?.toString()) ||
                (session.host_id === user._id);
+
+  // Admins can moderate any session, not just their own
+  const isAdminUser = user?.role === 'admin';
+  const canModerate = isHost || isAdminUser;
   
   // Debug: Check host ID comparison
   console.log('Host ID Debug:', {
@@ -65,11 +69,11 @@ export default function SessionCard({ session, user, onJoin, onLeave, onStart, o
   const isLive = session.is_live;
   const isOverdue = !session.is_live && !session.is_cancelled && !session.actual_end_time && now > end;
   const isInTimeWindow = now >= start && now <= end; // Session is within scheduled time window
-  const canStart = isHost 
-  && !session.is_live 
-  && !session.is_cancelled 
-  && !session.actual_end_time 
-  && now >= start;
+  const canStart = canModerate
+  && !session.is_live
+  && !session.is_cancelled
+  && !session.actual_end_time
+  && (isAdminUser || now >= start);
 
   // Debug: Check why start button not showing
   console.log('SessionCard Debug:', {
@@ -301,8 +305,8 @@ export default function SessionCard({ session, user, onJoin, onLeave, onStart, o
               </div>
             )}
 
-            {/* HOST: End Session */}
-            {isHost && session.is_live && (
+            {/* HOST/ADMIN: End Session */}
+            {canModerate && session.is_live && (
               <div className="relative flex-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-orange-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
                 <Button 
@@ -315,8 +319,8 @@ export default function SessionCard({ session, user, onJoin, onLeave, onStart, o
               </div>
             )}
 
-            {/* HOST: Navigate to Live Session */}
-            {isHost && session.is_live && (
+            {/* HOST/ADMIN: Navigate to Live Session */}
+            {canModerate && session.is_live && (
               <div className="relative flex-1">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
                 <Button 
@@ -407,6 +411,21 @@ export default function SessionCard({ session, user, onJoin, onLeave, onStart, o
                 <Share2 size={18} />
               </Button>
             </div>
+
+            {/* ADMIN: Cancel/Delete session (moderation) */}
+            {isAdminUser && !session.is_cancelled && onDelete && (
+              <div className="relative">
+                <div className="absolute inset-0 bg-red-900/30 rounded-xl blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
+                <Button
+                  onClick={() => onDelete(session._id)}
+                  className="relative bg-red-900/40 hover:bg-red-800/60 text-red-300 border border-red-700/50 py-3 px-4 rounded-xl backdrop-blur-sm transition-all duration-300 hover:scale-110"
+                  variant="ghost"
+                  title="Cancel session"
+                >
+                  <Trash2 size={18} />
+                </Button>
+              </div>
+            )}
 
           </div>
         </div>

@@ -72,6 +72,8 @@ export const subscriptionAPI = {
   deactivateSubscription: (id) => api.put(`/subscriptions/deactivateSubscription/${id}`),
   upgradeSubscription: (data) => api.put(`/subscriptions/upgradeSubscription`, data),
   createStripeCheckout: (data) => api.post('/subscriptions/create-checkout-session', data),
+  purchaseSubscription: (planId) => api.post('/subscriptions/purchase', { planId }),
+  stripeCheckout: (planId) => api.post('/payments/checkout', { planId }),
 };
 
 // Plan services

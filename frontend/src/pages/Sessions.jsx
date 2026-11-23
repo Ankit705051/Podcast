@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { sessionAPI } from '../services/api';
 import SessionCard from './SessionCard';
 import { Button } from '../components/Layout/Button';
-import { Plus, Search, ChevronDown, Calendar } from 'lucide-react';
+import { Plus, Search, Calendar } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Sessions() {
@@ -116,6 +116,19 @@ export default function Sessions() {
     } catch (error) {
       console.error('End error:', error);
       toast.error(error.response?.data?.message || 'Failed to end session');
+    }
+  };
+
+  // Handle delete/cancel session (admin moderation — works on any session)
+  const handleDelete = async (id) => {
+    if (!window.confirm('Cancel this session? This will end it for all participants.')) return;
+    try {
+      await sessionAPI.deleteSession(id);
+      toast.success('Session cancelled');
+      fetchSessions();
+    } catch (error) {
+      console.error('Delete error:', error);
+      toast.error(error.response?.data?.message || 'Failed to cancel session');
     }
   };
 
@@ -232,6 +245,7 @@ export default function Sessions() {
               onLeave={handleLeave}
               onStart={handleStart}
               onEnd={handleEnd}
+              onDelete={user?.role === 'admin' ? handleDelete : undefined}
             />
           ))}
         </div>

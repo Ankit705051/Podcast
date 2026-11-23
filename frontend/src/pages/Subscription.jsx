@@ -8,7 +8,6 @@ import {
   Clock,
   ArrowRight,
   Star,
-  Zap,
   Crown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -17,11 +16,26 @@ const Subscription = () => {
   const { user } = useAuth();
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [plans, setPlans] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState(false);
+  const [renewing, setRenewing] = useState(false);
 
   useEffect(() => {
     fetchSubscriptionData();
+
+    // Stripe redirects back here after checkout
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (payment === 'success') {
+      toast.success('Payment successful! Your subscription is being activated.');
+      window.history.replaceState({}, '', window.location.pathname);
+      // Webhook may take a moment — refresh subscription shortly after.
+      setTimeout(fetchSubscriptionData, 2000);
+    } else if (payment === 'cancelled') {
+      toast('Payment cancelled', { icon: 'ℹ️' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
   }, []);
 
   const fetchSubscriptionData = async () => {
@@ -50,8 +64,20 @@ const Subscription = () => {
         toast.error('Failed to load available plans');
       }
 
+      // Get payment history (non-fatal if it fails)
+      let paymentsData = [];
+      try {
+        const paymentsResponse = await paymentAPI.getUserPayments();
+        const payload = paymentsResponse.data.payments;
+        // Endpoint wraps results as { payments: [...], pagination } — unwrap.
+        paymentsData = Array.isArray(payload) ? payload : payload?.payments || [];
+      } catch (error) {
+        console.error('Error fetching payment history:', error);
+      }
+
       setCurrentSubscription(subscription);
       setPlans(plansData);
+      setPayments(paymentsData);
     } catch (error) {
       console.error('Error in fetchSubscriptionData:', error);
       toast.error('Failed to load subscription data');
@@ -70,12 +96,32 @@ const Subscription = () => {
     }
   };
 
-  const handleUpgradeSubscription = async (planId) => {
+  const handleUpgradeSubscription = async (plan) => {
+    const planId = plan.id || plan._id;
+
+    // Free plans don't go through a payment gateway — activate directly.
+    if (!plan.price || plan.price <= 0) {
+      try {
+        const response = await subscriptionAPI.createFree(user._id);
+        setCurrentSubscription(response.data.subscription);
+        toast.success('Free subscription activated!');
+      } catch (error) {
+        toast.error(error.response?.data?.message || 'Failed to activate plan');
+      }
+      return;
+    }
+
     setUpgrading(true);
     try {
-      const response = await paymentAPI.processSubscriptionPayment({ planId });
-      const message = response.data?.message || 'Payment transaction created';
-      toast.success(message);
+      // Premium plans go through Stripe Checkout — redirect to the hosted
+      // payment page; the webhook activates the subscription on success.
+      const response = await subscriptionAPI.purchaseSubscription(planId);
+      const url = response.data?.url;
+      if (url) {
+        window.location.href = url;
+        return;
+      }
+      toast.success(response.data?.message || 'Subscription updated');
       await fetchSubscriptionData();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to process payment');
@@ -84,17 +130,38 @@ const Subscription = () => {
     }
   };
 
-  const getPlanIcon = (planName) => {
-    switch (planName?.toLowerCase()) {
-      case 'free':
-        return <Star className="h-6 w-6" />;
-      case 'premium':
-        return <Crown className="h-6 w-6" />;
-      case 'pro':
-        return <Zap className="h-6 w-6" />;
-      default:
-        return <CreditCard className="h-6 w-6" />;
+  const handleCancelSubscription = async () => {
+    const subscriptionId = currentSubscription?.id || currentSubscription?._id;
+    if (!subscriptionId) return;
+    try {
+      await subscriptionAPI.cancelSubscription(subscriptionId);
+      toast.success('Subscription cancelled');
+      await fetchSubscriptionData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to cancel subscription');
     }
+  };
+
+  const handleRenewSubscription = async () => {
+    const subscriptionId = currentSubscription?.id || currentSubscription?._id;
+    if (!subscriptionId) return;
+    setRenewing(true);
+    try {
+      await subscriptionAPI.renewSubscription(subscriptionId, {});
+      toast.success('Subscription renewed');
+      await fetchSubscriptionData();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to renew subscription');
+    } finally {
+      setRenewing(false);
+    }
+  };
+
+  const getPlanIcon = (planName) => {
+    const name = planName?.toLowerCase() || '';
+    if (name.includes('premium') || name.includes('pro')) return <Crown className="h-6 w-6" />;
+    if (name === 'free') return <Star className="h-6 w-6" />;
+    return <CreditCard className="h-6 w-6" />;
   };
 
   const getStatusColor = (status) => {
@@ -183,19 +250,17 @@ const Subscription = () => {
               </div>
             </div>
 
-            {currentSubscription.status === 'active' && (
-              <div className="mt-6 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => {
-                    // Handle cancellation logic
-                    toast.info('Cancellation feature coming soon!');
-                  }}
-                  className="btn btn-secondary"
-                >
+            <div className="mt-6 pt-6 border-t border-gray-200 flex space-x-3">
+              {currentSubscription.status === 'active' ? (
+                <button onClick={handleCancelSubscription} className="btn btn-secondary">
                   Cancel Subscription
                 </button>
-              </div>
-            )}
+              ) : (
+                <button onClick={handleRenewSubscription} disabled={renewing} className="btn btn-primary">
+                  {renewing ? 'Renewing...' : 'Renew Subscription'}
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="card mb-8 bg-yellow-50 border border-yellow-200">
@@ -227,12 +292,12 @@ const Subscription = () => {
               
               return (
                 <div
-                  key={plan._id}
+                  key={plan._id || plan.id}
                   className={`card relative ${
-                    plan.name === 'Premium' ? 'border-primary-500 ring-2 ring-primary-200' : ''
+                    plan.price > 0 ? 'border-primary-500 ring-2 ring-primary-200' : ''
                   }`}
                 >
-                  {plan.name === 'Premium' && (
+                  {plan.price > 0 && (
                     <div className="absolute top-0 right-4 -translate-y-1/2 bg-primary-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                       Most Popular
                     </div>
@@ -250,7 +315,7 @@ const Subscription = () => {
                   <div className="mb-6">
                     <h4 className="font-semibold text-gray-900 mb-3">Features:</h4>
                     <ul className="space-y-2">
-                      {plan.features.map((feature, index) => (
+                      {(plan.features || []).map((feature, index) => (
                         <li key={index} className="flex items-center">
                           <CheckCircle className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
                           <span className="text-sm text-gray-600">{feature}</span>
@@ -270,7 +335,7 @@ const Subscription = () => {
                   </div>
 
                   <button
-                    onClick={() => handleUpgradeSubscription(plan._id)}
+                    onClick={() => handleUpgradeSubscription(plan)}
                     disabled={isCurrentPlan || upgrading}
                     className={`w-full btn ${
                       isCurrentPlan
@@ -321,15 +386,58 @@ const Subscription = () => {
 
         {/* Billing History */}
         <div className="mt-12">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">Billing Information</h2>
-          <div className="card">
-            <div className="text-center py-8">
-              <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-600">No billing history available</p>
-              <p className="text-sm text-gray-500 mt-2">
-                Your payment history will appear here once you have an active subscription.
-              </p>
-            </div>
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">Billing History</h2>
+          <div className="card overflow-x-auto">
+            {payments.length === 0 ? (
+              <div className="text-center py-8">
+                <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600">No billing history available</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Your payment history will appear here once you have an active subscription.
+                </p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plan</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {payments.map((payment) => (
+                    <tr key={payment.id}>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        {payment.plan?.name || payment.purpose || '—'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-900">
+                        ${payment.amount} {payment.currency?.toUpperCase()}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                          payment.paymentStatus === 'SUCCEEDED' || payment.paymentStatus === 'COMPLETED'
+                            ? 'text-green-600 bg-green-100'
+                            : payment.paymentStatus === 'FAILED'
+                            ? 'text-red-600 bg-red-100'
+                            : 'text-yellow-600 bg-yellow-100'
+                        }`}>
+                          {payment.paymentStatus}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-500 font-mono truncate max-w-[180px]">
+                        {payment.transactionId || '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </div>
