@@ -35,10 +35,13 @@ graph TD
     MW --> API
     API --> SVC
     SVC --> PrismaClient
-    PrismaClient <-->|SQL| Postgres
+    PrismaClient -->|SQL| Postgres
+    Postgres -->|Rows| PrismaClient
     SVC --> StripeSvc
-    StripeSvc <-->|Checkout Sessions / Webhooks| Stripe
-    SIO_Client <-->|WebSockets (chat, WebRTC signaling, session state)| SocketIO
+    StripeSvc -->|Checkout Sessions| Stripe
+    Stripe -->|Webhooks| StripeSvc
+    SIO_Client -->|Events| SocketIO
+    SocketIO -->|Broadcasts| SIO_Client
     SocketIO --> SVC
     SVC -->|Verification & Alert Emails| SMTP
 ```
