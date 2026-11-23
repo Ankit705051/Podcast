@@ -99,8 +99,12 @@ const findSessionOrThrow = async (id: string) => {
   return session;
 };
 
-const assertHost = (session: SessionWithRelations, userId: string) => {
-  if (session.hostId !== userId) {
+const assertHost = (
+  session: SessionWithRelations,
+  userId: string,
+  isAdmin = false
+) => {
+  if (!isAdmin && session.hostId !== userId) {
     throw new AppError("Only the host can perform this action", 403);
   }
 };
@@ -188,10 +192,11 @@ export const createSession = async (
 export const updateSession = async (
   id: string,
   updates: UpdateSessionInput,
-  userId: string
+  userId: string,
+  isAdmin = false
 ) => {
   const session = await findSessionOrThrow(id);
-  assertHost(session, userId);
+  assertHost(session, userId, isAdmin);
 
  
   const data: Prisma.SessionUpdateInput = { ...updates };
@@ -210,12 +215,20 @@ export const updateSession = async (
   return serializeSession(updated);
 };
 
-export const deleteSession = async (id: string, userId: string) => {
+export const deleteSession = async (
+  id: string,
+  userId: string,
+  isAdmin = false
+) => {
   const session = await findSessionOrThrow(id);
-  assertHost(session, userId);
+  assertHost(session, userId, isAdmin);
 
   if (session.status === SessionStatus.ACTIVE) {
-    throw new AppError("Cannot delete a live session", 400);
+    if (!isAdmin) {
+      throw new AppError("Cannot delete a live session", 400);
+    }
+    // Admin moderation: end the live session properly before cancelling.
+    await endActiveSession(session);
   }
 
   await prisma.session.update({
@@ -282,9 +295,13 @@ const endActiveSession = async (session: SessionWithRelations) => {
   });
 };
 
-export const startSession = async (id: string, userId: string) => {
+export const startSession = async (
+  id: string,
+  userId: string,
+  isAdmin = false
+) => {
   const session = await findSessionOrThrow(id);
-  assertHost(session, userId);
+  assertHost(session, userId, isAdmin);
 
   if (session.status === SessionStatus.ACTIVE) {
     throw new AppError("Session is already live", 400);
@@ -308,9 +325,13 @@ export const startSession = async (id: string, userId: string) => {
   return serializeSession(updated);
 };
 
-export const endSession = async (id: string, userId: string) => {
+export const endSession = async (
+  id: string,
+  userId: string,
+  isAdmin = false
+) => {
   const session = await findSessionOrThrow(id);
-  assertHost(session, userId);
+  assertHost(session, userId, isAdmin);
 
   if (session.status !== SessionStatus.ACTIVE) {
     throw new AppError("Session is not live", 400);
@@ -350,10 +371,11 @@ const toggleSessionFlag = async (
   id: string,
   userId: string,
   field: "isRecorded" | "allowScreenShare",
-  enabled: boolean
+  enabled: boolean,
+  isAdmin = false
 ) => {
   const session = await findSessionOrThrow(id);
-  assertHost(session, userId);
+  assertHost(session, userId, isAdmin);
 
   if (session.status !== SessionStatus.ACTIVE) {
     throw new AppError(
@@ -374,11 +396,13 @@ const toggleSessionFlag = async (
 export const toggleRecording = (
   id: string,
   userId: string,
-  enabled: boolean
-) => toggleSessionFlag(id, userId, "isRecorded", enabled);
+  enabled: boolean,
+  isAdmin = false
+) => toggleSessionFlag(id, userId, "isRecorded", enabled, isAdmin);
 
 export const toggleScreenShare = (
   id: string,
   userId: string,
-  enabled: boolean
-) => toggleSessionFlag(id, userId, "allowScreenShare", enabled);
+  enabled: boolean,
+  isAdmin = false
+) => toggleSessionFlag(id, userId, "allowScreenShare", enabled, isAdmin);

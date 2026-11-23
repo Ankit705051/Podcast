@@ -13,6 +13,7 @@ import {
   upgradeSubscription,
   createCheckoutSession,
 } from "../services/subscription.service.js";
+import { createStripeCheckoutForPlan } from "../services/payment.service.js";
 import type { JwtUser } from "../types/auth.js";
 import type {
   CheckoutSessionInput,
@@ -46,6 +47,24 @@ export const createCheckoutSessionController = asyncHandler(
       planName: result.planName,
       message:
         "Payment transaction created. Complete payment to activate subscription.",
+    });
+  }
+);
+
+// Premium plan purchase — creates a Stripe Checkout session and returns
+// the hosted payment URL for the frontend to redirect to.
+export const purchaseSubscriptionController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { planId } = req.body as CheckoutSessionInput;
+    const result = await createStripeCheckoutForPlan(requester(req).id, planId);
+    return res.status(200).json({
+      success: true,
+      url: result.url,
+      sessionId: result.sessionId,
+      paymentId: result.paymentId,
+      amount: result.amount,
+      planName: result.planName,
+      message: "Redirect to the payment gateway to complete purchase",
     });
   }
 );

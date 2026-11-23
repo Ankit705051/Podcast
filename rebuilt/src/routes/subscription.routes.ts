@@ -11,6 +11,7 @@ import {
 import {
   createFreeSubscriptionController,
   createCheckoutSessionController,
+  purchaseSubscriptionController,
   getUserSubscriptionController,
   getAllSubscriptionsController,
   getSubscriptionByIdController,
@@ -28,6 +29,14 @@ const router = Router();
 router.post(
   "/createFreeSubscription/:userId",
   createFreeSubscriptionController
+);
+
+// Premium subscription purchase via Stripe Checkout (returns { url })
+router.post(
+  "/purchase",
+  authenticateUser,
+  validate(checkoutSessionSchema, "body"),
+  purchaseSubscriptionController
 );
 
 // Authenticated user routes

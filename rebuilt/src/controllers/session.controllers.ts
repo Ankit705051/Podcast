@@ -22,6 +22,7 @@ import type {
 import type { ParticipantRole } from "@prisma/client";
 
 const currentUser = (req: Request): JwtUser => req.user as JwtUser;
+const isAdmin = (req: Request): boolean => currentUser(req).role === "admin";
 
 export const getAllSessionsController = asyncHandler(
   async (req: Request, res: Response) => {
@@ -60,7 +61,8 @@ export const updateSessionController = asyncHandler(
     const session = await updateSession(
       req.params.id as string,
       req.body as UpdateSessionInput,
-      currentUser(req).id
+      currentUser(req).id,
+      isAdmin(req)
     );
     return res.status(200).json({
       success: true,
@@ -72,7 +74,11 @@ export const updateSessionController = asyncHandler(
 
 export const deleteSessionController = asyncHandler(
   async (req: Request, res: Response) => {
-    await deleteSession(req.params.id as string, currentUser(req).id);
+    await deleteSession(
+      req.params.id as string,
+      currentUser(req).id,
+      isAdmin(req)
+    );
     return res.status(200).json({
       success: true,
       message: "Session cancelled successfully",
@@ -100,7 +106,8 @@ export const startSessionController = asyncHandler(
   async (req: Request, res: Response) => {
     const session = await startSession(
       req.params.id as string,
-      currentUser(req).id
+      currentUser(req).id,
+      isAdmin(req)
     );
     return res.status(200).json({
       success: true,
@@ -114,7 +121,8 @@ export const endSessionController = asyncHandler(
   async (req: Request, res: Response) => {
     const session = await endSession(
       req.params.id as string,
-      currentUser(req).id
+      currentUser(req).id,
+      isAdmin(req)
     );
     return res.status(200).json({
       success: true,
@@ -146,7 +154,8 @@ export const toggleRecordingController = asyncHandler(
     const session = await toggleRecording(
       req.params.id as string,
       currentUser(req).id,
-      enabled
+      enabled,
+      isAdmin(req)
     );
     return res.status(200).json({
       success: true,
@@ -162,7 +171,8 @@ export const toggleScreenShareController = asyncHandler(
     const session = await toggleScreenShare(
       req.params.id as string,
       currentUser(req).id,
-      enabled
+      enabled,
+      isAdmin(req)
     );
     return res.status(200).json({
       success: true,

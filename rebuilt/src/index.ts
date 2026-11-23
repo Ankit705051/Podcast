@@ -14,6 +14,7 @@ import authRoutes from "./routes/auth.routes.js";
 import planRoutes from "./routes/plans.routes.js";
 import subscriptionRoutes from "./routes/subscription.routes.js";
 import paymentRoutes from "./routes/payments.routes.js";
+import { stripeWebhookController } from "./controllers/payment.controller.js";
 import sessionRoutes from "./routes/sessions.routes.js";
 import recordingRoutes from "./routes/recordings.routes.js";
 import chatRoutes from "./routes/chat.routes.js";
@@ -27,6 +28,14 @@ import { initializeSocket } from "./socket/socket.js";
 const app = express();
 
 app.set("trust proxy", 1);
+
+// Stripe webhook needs the RAW body for signature verification — mount it
+// before express.json() parses the payload.
+app.post(
+  "/api/v1/payments/webhook/stripe",
+  express.raw({ type: "application/json" }),
+  stripeWebhookController
+);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
