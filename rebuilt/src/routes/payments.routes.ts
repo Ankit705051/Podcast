@@ -12,6 +12,7 @@ import {
   getAllPaymentsController,
   createPaymentController,
   processSubscriptionPaymentController,
+  createStripeCheckoutController,
 } from "../controllers/payment.controller.js";
 
 const router = Router();
@@ -30,6 +31,13 @@ router.post(
   authenticateUser,
   validate(processSubscriptionPaymentSchema, "body"),
   processSubscriptionPaymentController
+);
+// Stripe hosted checkout — returns { url } for the frontend to redirect to.
+router.post(
+  "/checkout",
+  authenticateUser,
+  validate(processSubscriptionPaymentSchema, "body"),
+  createStripeCheckoutController
 );
 
 // Admin route

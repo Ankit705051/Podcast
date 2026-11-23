@@ -14,6 +14,14 @@ const pool = new Pool({
   keepAliveInitialDelayMillis: 10000,
 });
 
+// Neon (and other serverless Postgres) drops idle connections. Without an
+// 'error' listener, pg-pool surfaces each dead idle client as an unhandled
+// error — sometimes crashing an in-flight request. Log and discard instead;
+// the pool hands out fresh connections on the next query.
+pool.on("error", (err) => {
+  console.error("Postgres pool idle client error:", err.message);
+});
+
 const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({

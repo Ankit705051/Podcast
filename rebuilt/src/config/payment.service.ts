@@ -4,7 +4,11 @@ import { AppError } from "../utils/AppError.js";
 const PAYMENT_SERVICE_URL = process.env.PAYMENT_SERVICE_URL || "http://localhost:3002";
 const PAYMENT_SERVICE_API_KEY = process.env.PAYMENT_SERVICE_API_KEY;
 const PAYMENT_MOCK = process.env.PAYMENT_SERVICE_MOCK === "true";
-const PAYMENT_TIMEOUT_MS = Number(process.env.PAYMENT_SERVICE_TIMEOUT ?? 5000);
+const PAYMENT_TIMEOUT_MS = Number(
+  process.env.PAYMENT_SERVICE_TIMEOUT ??
+    process.env.PAYMENT_SERVICE_TIMEOUT_MS ??
+    5000
+);
 
 export type NormalizedPaymentStatus =  | "INITIATED" | "PROCESSING" | "SUCCEEDED"| "FAILED"| "REFUNDED";
 export type SubscriptionStatus =| "INITIATED"| "ACTIVE"| "CANCELLED" | "PAST_DUE"| "FAILED";
@@ -47,7 +51,8 @@ const validateConfig = () => {
     if (!PAYMENT_MOCK && !PAYMENT_SERVICE_API_KEY) {
        throw new Error("PAYMENT_SERVICE_API_KEY is required");
     } 
-    if(!Number.isFinite(Number(process.env.PAYMENT_SERVICE_TIMEOUT))) {
+    // Service URL / API key / timeout only matter when NOT mocking.
+    if (!PAYMENT_MOCK && !Number.isFinite(PAYMENT_TIMEOUT_MS)) {
         throw new Error("PAYMENT_SERVICE_TIMEOUT is not configured or invalid");
     }
 };

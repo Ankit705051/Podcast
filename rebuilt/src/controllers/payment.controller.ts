@@ -6,7 +6,11 @@ import {
   getAllPayments,
   createPayment,
   processSubscriptionPayment,
+  createStripeCheckoutForPlan,
+  fulfillStripePayment,
 } from "../services/payment.service.js";
+import { constructStripeEvent } from "../services/stripe.service.js";
+import type Stripe from "stripe";
 import type { JwtUser } from "../types/auth.js";
 import type {
   CreatePaymentInput,
@@ -73,5 +77,47 @@ export const processSubscriptionPaymentController = asyncHandler(
           ? "Payment completed and subscription activated"
           : "Payment transaction created. Complete payment to activate subscription.",
     });
+  }
+);
+
+// Stripe checkout session for a paid plan — returns the hosted checkout URL.
+export const createStripeCheckoutController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { planId } = req.body as { planId: string };
+    const result = await createStripeCheckoutForPlan(requester(req).id, planId);
+    return res.status(200).json({
+      success: true,
+      url: result.url,
+      sessionId: result.sessionId,
+      paymentId: result.paymentId,
+      amount: result.amount,
+      planName: result.planName,
+    });
+  }
+);
+
+// Stripe webhook — mounted with express.raw() in index.ts so the signature
+// can be verified against the raw request body.
+export const stripeWebhookController = asyncHandler(
+  async (req: Request, res: Response) => {
+    const signature = req.headers["stripe-signature"] as string | undefined;
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body
+      : Buffer.from(JSON.stringify(req.body ?? {}));
+
+    let event: Stripe.Event;
+    try {
+      event = constructStripeEvent(rawBody, signature ?? "");
+    } catch (error) {
+      console.error("Stripe webhook verification failed:", error);
+      return res.status(400).json({ success: false, message: "Invalid signature" });
+    }
+
+    if (event.type === "checkout.session.completed") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      await fulfillStripePayment(session);
+    }
+
+    return res.status(200).json({ received: true });
   }
 );

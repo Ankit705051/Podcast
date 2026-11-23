@@ -1,8 +1,12 @@
+import { randomUUID } from "node:crypto";
+import type Stripe from "stripe";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/AppError.js";
 import paymentService, {
   type PaymentServiceResponse,
 } from "../config/payment.service.js";
+import { getStripeClient } from "./stripe.service.js";
+import { createPaymentAttempt } from "./paymentAttempt.services.js";
 import type { JwtUser } from "../types/auth.js";
 import type {
   CreatePaymentInput,
@@ -348,4 +352,175 @@ export const processSubscriptionPayment = async (
     payment: { ...payment, paymentStatus: "COMPLETED" as const },
     subscription: activated,
   };
+};
+
+// ---------------------------------------------------------------------------
+// Stripe Checkout (real payment gateway)
+// ---------------------------------------------------------------------------
+
+export const createStripeCheckoutForPlan = async (
+  userId: string,
+  planId: string
+) => {
+  const plan = await prisma.plan.findUnique({ where: { id: planId } });
+  if (!plan || !plan.isActive) {
+    throw new AppError("Plan not found", 404, "PLAN_NOT_FOUND");
+  }
+  if (plan.price <= 0) {
+    throw new AppError(
+      "Free plans do not require a payment checkout",
+      400,
+      "FREE_PLAN"
+    );
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+
+  // Local PENDING payment row; transactionId is a placeholder until Stripe
+  // confirms (webhook replaces it with the real session/payment id).
+  const payment = await prisma.payment.create({
+    data: {
+      userId,
+      planId: plan.id,
+      amount: plan.price,
+      currency: "usd",
+      paymentStatus: "PENDING",
+      transactionId: `pending_${randomUUID()}`,
+      paymentDate: new Date(),
+      purpose: "subscription",
+    },
+  });
+
+  const baseUrl =
+    process.env.FRONTEND_URL || process.env.BASE_URL || "http://localhost:3001";
+
+  const session = await getStripeClient().checkout.sessions.create({
+    mode: "payment",
+    ...(user?.email ? { customer_email: user.email } : {}),
+    line_items: [
+      {
+        price_data: {
+          currency: "usd",
+          // plan.price is stored in major units (dollars); Stripe wants cents.
+          unit_amount: plan.price * 100,
+          product_data: {
+            name: `${plan.name} Subscription`,
+            description: `${plan.duration}-day ${plan.name} plan`,
+          },
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      paymentId: payment.id,
+      userId,
+      planId: plan.id,
+    },
+    success_url: `${baseUrl}/subscription?payment=success`,
+    cancel_url: `${baseUrl}/subscription?payment=cancelled`,
+  });
+
+  await createPaymentAttempt({
+    paymentId: payment.id,
+    gateway: "STRIPE",
+    idempotencyKey: payment.id,
+    checkoutSessionId: session.id,
+    providerPaymentId: session.id,
+  });
+
+  return {
+    url: session.url,
+    sessionId: session.id,
+    paymentId: payment.id,
+    amount: plan.price,
+    planName: plan.name,
+  };
+};
+
+// Called by the Stripe webhook once checkout.session.completed arrives.
+// Marks the payment SUCCEEDED and activates/renews the subscription.
+export const fulfillStripePayment = async (session: Stripe.Checkout.Session) => {
+  const paymentId = session.metadata?.paymentId;
+  if (!paymentId) {
+    console.warn("Stripe session missing paymentId metadata:", session.id);
+    return;
+  }
+
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { plan: true },
+  });
+  if (!payment) {
+    console.warn("Stripe webhook: payment not found", paymentId);
+    return;
+  }
+  if (payment.paymentStatus === "SUCCEEDED") {
+    return; // idempotent � Stripe may retry webhooks
+  }
+
+  const plan = payment.plan;
+  if (!plan) {
+    throw new AppError("Payment has no plan", 400, "PLAN_NOT_FOUND");
+  }
+
+  const endDate = new Date(Date.now() + plan.duration * DAY_MS);
+  const existing = await prisma.subscription.findFirst({
+    where: { userId: payment.userId },
+  });
+
+  const activated = existing
+    ? await prisma.subscription.update({
+        where: { id: existing.id },
+        data: {
+          planId: plan.id,
+          status: "ACTIVE",
+          isActive: true,
+          startDate: new Date(),
+          endDate,
+          amount: plan.price,
+          payment_service_transaction_id: session.id,
+        },
+        include: { plan: true },
+      })
+    : await prisma.subscription.create({
+        data: {
+          userId: payment.userId,
+          planId: plan.id,
+          status: "ACTIVE",
+          isActive: true,
+          startDate: new Date(),
+          endDate,
+          amount: plan.price,
+          payment_service_transaction_id: session.id,
+        },
+        include: { plan: true },
+      });
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      paymentStatus: "SUCCEEDED",
+      paidAt: new Date(),
+      subscriptionId: activated.id,
+      transactionId: session.payment_intent
+        ? String(session.payment_intent)
+        : session.id,
+    },
+  });
+
+  await syncUserSubscription(payment.userId, plan.price, endDate);
+
+  // Mark the attempt succeeded too
+  await prisma.paymentAttempt.updateMany({
+    where: { paymentId: payment.id, gateway: "STRIPE" },
+    data: {
+      status: "SUCCEEDED",
+      providerPaymentId: session.payment_intent
+        ? String(session.payment_intent)
+        : session.id,
+    },
+  });
 };

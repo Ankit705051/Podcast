@@ -6,11 +6,14 @@ export interface CreatePaymentAttemptInput {
   paymentId: string;
   gateway: PaymentGateway;
   idempotencyKey: string;
+  checkoutSessionId?: string;
+  providerPaymentId?: string;
 }
 export const createPaymentAttempt = async (
   input: CreatePaymentAttemptInput
 ): Promise<PaymentAttempt> => {
-  const { paymentId, gateway, idempotencyKey } = input;
+  const { paymentId, gateway, idempotencyKey, checkoutSessionId, providerPaymentId } =
+    input;
 
   return prisma.$transaction(async (tx) => {
     const payments = await tx.$queryRaw<{ id: string }[]>`
@@ -50,6 +53,8 @@ export const createPaymentAttempt = async (
         idempotencyKey,
         attemptNumber: nextAttemptNumber,
         status: PaymentAttemptStatus.INITIATED,
+        ...(checkoutSessionId ? { checkoutSessionId } : {}),
+        ...(providerPaymentId ? { providerPaymentId } : {}),
       },
     });
   });
