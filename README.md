@@ -1,265 +1,294 @@
-# 🎙️ PodcastHub - Real-time Podcasting & Billing Platform
+# 🎙️ PodcastHub — Rebuilt Backend
 
-PodcastHub is a modern, full-stack, real-time audio podcasting and subscription platform. It allows hosts to create live audio rooms with dynamic speaking/listening roles, features real-time chat powered by WebSockets, and offers premium subscriptions integrated with Stripe billing and automated cron jobs.
+A modern, full-stack, real-time podcasting and subscription platform backend. Built with **TypeScript + Express 5 + Prisma + PostgreSQL**, it provides JWT authentication, role-based access (user / host / admin), WebRTC-based live sessions (no Agora), real-time chat over Socket.IO, session recordings, collaboration tools (interview, whiteboard, code editor, webinar, polls, Q&A), and Stripe-powered subscription billing.
 
 ---
 
 ## 🏗️ System Architecture
 
-The following diagram illustrates how the frontend components, backend server, database, and external cloud services interact with one another:
-
 ```mermaid
 graph TD
     subgraph Frontend [React Application - Port 3001]
         UI["React UI (Tailwind CSS)"]
-        Redux["Redux State Management"]
-        RTC_SDK["Agora RTC SDK NG"]
+        AuthCtx["AuthContext + Axios"]
+        WebRTC["WebRTC Peer Connections (mesh)"]
         SIO_Client["Socket.io Client"]
-        Stripe_JS["Stripe JS & Elements"]
     end
 
-    subgraph Backend [Express Node Server - Port 3000]
+    subgraph Backend [Express + Socket.IO Server - Port 3000]
         API["Express Routing & Controllers"]
-        Auth["JWT Authenticator Middleware"]
+        MW["Middleware: JWT Auth · Zod Validation · Rate Limit · Helmet/CORS"]
+        SVC["Service Layer (business logic)"]
         SocketIO["Socket.io Server Instance"]
-        AgoraToken["Agora RTC Token Generator"]
-        StripeController["Stripe Billing & Webhooks"]
-        CronJob["Node-cron Expiry Checkers"]
+        StripeSvc["Stripe Checkout + Webhook Verifier"]
+        PrismaClient["Prisma Client (pg pool)"]
     end
 
-    subgraph External [External Cloud Services]
+    subgraph Data [Data & External Services]
+        Postgres[("PostgreSQL — Neon/serverless")]
         Stripe["Stripe Billing Gateway"]
-        Agora["Agora RTC Audio Cloud"]
-        Mailtrap["Mailtrap SMTP (Email Sandbox)"]
-        MongoDB["MongoDB Atlas Database"]
+        SMTP["SMTP Server (optional)"]
     end
 
     UI -->|HTTP / REST| API
-    UI -->|RTC Token Requests| AgoraToken
-    RTC_SDK <-->|Real-time Audio Channels| Agora
-    SIO_Client <-->|WebSockets (Chat & Activity)| SocketIO
-    Stripe_JS <-->|Secure Card Tokenization| Stripe
-    
-    API -->|Auth Validation| Auth
-    API -->|Read/Write Operations| MongoDB
-    StripeController <-->|Create Sessions / Sync Subscriptions| Stripe
-    Stripe -->|Webhooks| API
-    CronJob -->|Automated Sub Expirations| MongoDB
-    API -->|SMTP Transactional Emails| Mailtrap
+    AuthCtx -->|Bearer JWT| MW
+    MW --> API
+    API --> SVC
+    SVC --> PrismaClient
+    PrismaClient <-->|SQL| Postgres
+    SVC --> StripeSvc
+    StripeSvc <-->|Checkout Sessions / Webhooks| Stripe
+    SIO_Client <-->|WebSockets (chat, WebRTC signaling, session state)| SocketIO
+    SocketIO --> SVC
+    SVC -->|Verification & Alert Emails| SMTP
+```
+
+### Request lifecycle
+
+```
+Client → Helmet/CORS → rate limiter → JWT auth → Zod validation
+       → Controller → Service → Prisma → PostgreSQL
+       → serialized response (legacy snake_case aliases preserved)
 ```
 
 ---
 
 ## ✨ Core Features
 
-*   **🎙️ Real-time Audio Rooms (Agora RTC):** 
-    *   Dynamic roles including **Moderator** (full control), **Speaker** (can talk), and **Listener** (receives audio streams).
-    *   On-demand token generation with cryptographic signatures for safe channel joins.
-    *   Agora Cloud Recording integration to store and review past podcast sessions.
-*   **💬 Interactive Real-time Chat (Socket.io):**
-    *   Auth-secured WebSockets checking JWT on handshake.
-    *   Typing indicators, participant join/leave notifications, and room-specific message history stored directly in MongoDB.
-*   **💳 Subscription & Plans (Stripe Billing):**
-    *   Multi-tier plans with billing intervals.
-    *   Secure Stripe Checkout redirection and Customer Portal billing management.
-    *   Stripe Webhooks endpoint using signature verification to keep MongoDB subscription entries synchronized in real-time.
-    *   Automated Node-cron schedulers running daily to invalidate expired memberships.
-*   **🔒 Secure JWT Authentication:**
-    *   Cookies/Header-based token extraction.
-    *   Bcrypt-hashed password verification.
-    *   SMTP Mailer integration (Nodemailer) for transactional alerts and registration verifications.
+*   **🔐 Authentication & Users**
+    *   Register / login / forgot & reset password / email verification
+    *   JWT access tokens, bcrypt password hashing, role claims (`user`, `host`, `admin`)
+    *   Profile management + avatar uploads (`/uploads`)
+
+*   **🎙️ Live Sessions (WebRTC, no Agora)**
+    *   Hosts & admins create, schedule, start, end, and delete sessions
+    *   Full-mesh WebRTC video between participants (offer/answer + ICE via Socket.IO)
+    *   Roles: host, speaker, listener — deterministic offerer to avoid glare
+    *   Join/leave tracking, viewer counts, scheduled/ended/cancelled states
+    *   Admin moderation: manage **any** session, force-end live sessions
+
+*   **💬 Real-time Chat (Socket.IO)**
+    *   JWT-authenticated socket handshake
+    *   Room-scoped messages persisted to Postgres, history endpoint
+    *   Typing indicators, join/leave notifications, self-healing membership
+
+*   **💳 Plans, Subscriptions & Stripe Billing**
+    *   Multi-tier plans managed by admins (CRUD at `/admin`)
+    *   Free plan instant activation; premium plans → **Stripe Checkout** redirect
+    *   Webhook (`checkout.session.completed`) → payment `SUCCEEDED` + subscription `ACTIVE`
+    *   Payment + PaymentAttempt audit trail with idempotency keys
+    *   Renew / cancel subscriptions; user subscription sync (`subscription_type`, `subscription_status`)
+
+*   **📼 Recordings**
+    *   Host-controlled recording toggle per session, recording list/download per user & session
+
+*   **🧩 Collaboration Modules**
+    *   Interview rooms, whiteboard, collaborative code editor
+    *   Webinar tools: polls, Q&A, moderation controls
 
 ---
 
 ## 🛠️ Tech Stack
 
-### Frontend
-*   **React 18** (SPA framework)
-*   **React Router DOM v6** (Protected & layout routes)
-*   **Redux Toolkit** (Global state management)
-*   **Tailwind CSS** & **Headless UI** (Responsive layouts, transitions, and overlays)
-*   **Agora RTC SDK NG** (Real-time WebRTC audio clients)
-*   **Socket.io Client** (WebSocket connections)
-*   **Stripe SDK / Elements** (Credit card tokenization)
-*   **React Hook Form** (Form validations)
-*   **React Hot Toast** (Toast notifications)
+### Backend (`rebuilt/`)
+*   **Node.js** + **TypeScript** (ESM, `tsx` dev runner)
+*   **Express 5** — REST API
+*   **Prisma 7** + **pg** — PostgreSQL access with connection pooling
+*   **Socket.IO** — real-time events & WebRTC signaling
+*   **Stripe Node SDK** — Checkout Sessions + webhook signature verification
+*   **Zod** — request validation
+*   **JWT + bcrypt** — authentication
+*   **Helmet, CORS, express-rate-limit, pino** — security & observability
+*   **Multer** — file uploads
+*   **Jest** — tests
 
-### Backend
-*   **Node.js** & **Express** (ESM Modules, Express v5)
-*   **MongoDB** & **Mongoose** (Object-Document Mapper)
-*   **Socket.io Server** (WebSocket listener)
-*   **Agora Access Token** (RTC token service)
-*   **Stripe NodeJS** (Subscription & customer operations)
-*   **Node-cron** (Scheduler)
-*   **Nodemailer** (SMTP integration)
+### Frontend (`frontend/`)
+*   **React 18** SPA — React Router v6, Axios, Socket.IO client
+*   **WebRTC** (`navigator.mediaDevices`) for camera/mic/screen share
+*   Tailwind-style utility classes, `react-hot-toast`, `lucide-react`
 
 ---
 
-## 📂 Project Directory Structure
+## 📂 Project Structure
 
 ```
 podcast/
-├── backend/                  # Node.js backend server
-│   ├── config/               # Database configurations and constants
-│   ├── controllers/          # Business logic controllers (users, sessions, payments)
-│   ├── cron/                 # Node-cron jobs for subscriptions
-│   ├── database/             # MongoDB connection scripts
-│   ├── middleware/           # Auth and error middlewares
-│   ├── models/               # Mongoose Schema definitions
-│   ├── routes/               # API route definitions
-│   ├── socket/               # Socket.io listeners & auth handler
-│   ├── uploads/              # Staged local file/avatar uploads
-│   ├── index.js              # Server entry point
-│   ├── package.json          # Backend npm dependencies
-│   └── POSTMAN_TEST_GUIDE.md # API routes verification manual
-└── frontend/                 # React frontend application
-    ├── public/               # Static assets
-    ├── src/
-    │   ├── components/       # UI Components (Auth, Layout, Rooms)
-    │   ├── context/          # React contexts
-    │   ├── pages/            # View pages (Login, Dashboard, Room)
-    │   ├── services/         # Axios API connection endpoints
-    │   ├── App.jsx           # Routing wrapper
-    │   └── index.js          # App entry point
-    └── package.json          # Frontend npm dependencies
+├── backend/                  # Legacy MongoDB/Agora backend (reference only)
+├── rebuilt/                  # ⭐ This backend — TypeScript/Prisma/PostgreSQL
+│   ├── prisma/
+│   │   ├── schema.prisma     # Full data model (users, plans, payments,
+│   │   │                     #   subscriptions, sessions, participants,
+│   │   │                     #   recordings, chat, interview, webinar…)
+│   │   └── migrations/
+│   ├── src/
+│   │   ├── config/           # External service clients (payment service)
+│   │   ├── controllers/      # HTTP handlers (thin)
+│   │   ├── gateways/         # Payment gateway adapters
+│   │   ├── lib/              # prisma.ts (pool + keep-alive + error handler)
+│   │   ├── middleware/       # auth, authorize, validate, security, errors
+│   │   ├── routes/           # One router per domain
+│   │   ├── services/         # Business logic layer
+│   │   ├── socket/           # session.socket.ts, chat.socket.ts
+│   │   ├── types/            # Shared TypeScript types
+│   │   ├── utils/            # AppError, asyncHandler, token, mail
+│   │   └── validation/       # Zod schemas
+│   ├── .env
+│   └── README.md
+└── frontend/                 # React SPA (adapted to this backend)
+    └── src/
+        ├── components/       # Auth, Layout, Chat, ParticipantGrid, VideoPlayer…
+        ├── context/          # AuthContext
+        ├── pages/            # Home, Sessions, SessionView, Subscription, AdminPlans…
+        ├── services/         # api.js (Axios), socket.js, webrtc.js
+        └── App.jsx
 ```
 
 ---
 
 ## 🚀 Installation & Local Setup
 
-### 📋 Prerequisites
-Make sure you have installed:
-*   [Node.js](https://nodejs.org/) (v16.x or higher)
-*   [MongoDB](https://www.mongodb.com/) (Local instance or MongoDB Atlas account URI)
-*   Stripe Developer Account (test keys)
-*   Agora Developer Account (App ID and Certificate)
+### Prerequisites
+*   Node.js ≥ 18
+*   PostgreSQL (Neon serverless URI works great for dev)
+*   Stripe account with **test keys**
+*   Stripe CLI (optional, for local webhooks)
 
----
+### 1. Backend
 
-### 💻 1. Configure the Backend
-
-1. Navigate to the backend folder:
-   ```bash
-   cd backend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Setup the `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-4. Fill in the required environment parameters:
-   ```env
-   PORT=3000
-   MONGO_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/podcasthub
-   JWT_SECRET=your_jwt_strong_secret_key
-   
-   # SMTP mail server credentials (e.g., Mailtrap)
-   MAIL_HOST=sandbox.smtp.mailtrap.io
-   MAIL_PORT=2525
-   MAIL_USERNAME=your_smtp_username
-   MAIL_PASSWORD=your_smtp_password
-   
-   # Frontend URL (for CORS validation)
-   FRONTEND_URL=http://localhost:3001
-   BASE_URI=http://localhost:3000
-   ```
-5. Run the backend development server:
-   ```bash
-   npm run dev
-   ```
-   The backend server runs at `http://localhost:3000`.
-
----
-
-### 💻 2. Configure the Frontend
-
-1. Navigate to the frontend folder:
-   ```bash
-   cd ../frontend
-   ```
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Setup the `.env` file:
-   ```bash
-   cp .env.example .env
-   ```
-4. Configure your client-side env keys:
-   ```env
-   REACT_APP_API_URL=http://localhost:3000/api/v1
-   REACT_APP_STRIPE_PUBLISHABLE_KEY=pk_test_...
-   ```
-5. Run the frontend development server:
-   ```bash
-   npm start
-   ```
-   The web application will automatically open at `http://localhost:3001`.
-
----
-
-## 📡 REST API Endpoint Overview
-
-| Resource | Method | Endpoint | Auth | Description |
-| :--- | :---: | :--- | :---: | :--- |
-| **Auth** | `POST` | `/api/v1/users/register` | ❌ | Create new user account |
-| | `POST` | `/api/v1/users/login` | ❌ | Log in and return JWT token |
-| | `GET` | `/api/v1/users/profile` | `JWT` | Retrieve current user detail |
-| **Sessions** | `POST` | `/api/v1/sessions` | `JWT` | Host a new podcast session |
-| | `GET` | `/api/v1/sessions` | `JWT` | Fetch all active sessions |
-| | `POST` | `/api/v1/sessions/:id/join` | `JWT` | Join a session room |
-| **Agora** | `POST` | `/api/v1/agora/token` | `JWT` | Generate audio channel token |
-| **Chat** | `GET` | `/api/v1/chat/:sessionId` | `JWT` | Fetch session message history |
-| **Payments** | `POST` | `/api/v1/payments/checkout` | `JWT` | Create a Stripe Checkout session |
-| | `POST` | `/api/v1/webhooks` | ❌ | Stripe Webhook handler (raw body) |
-| **Recordings**| `GET` | `/api/v1/recordings/:sessionId`| `JWT` | Fetch session audio recordings |
-
----
-
-## 🔌 Socket.io Events Reference
-
-During a live audio session, WebSockets facilitate text messaging and participant states. Here is the contract:
-
-### Clients Emitting Events
-*   `join-session` (Payload: `sessionId`): Adds the socket connection to the target room namespace. Returns errors if unauthorized.
-*   `leave-session` (Payload: `sessionId`): Gracefully exits the room namespace.
-*   `send-message` (Payload: `{ sessionId, message, type: 'text' }`): Persists message to MongoDB and broadcasts it to all participants in the session.
-*   `typing-start` (Payload: `sessionId`): Broadcasts typing indicators to show other users who is composing a message.
-*   `typing-stop` (Payload: `sessionId`): Clears typing status notification.
-
-### Server Broadcasting Events
-*   `user-joined` (Payload: `{ userId, userName, timestamp }`): Emitted when a new listener/speaker joins.
-*   `user-left` (Payload: `{ userId, userName, timestamp }`): Emitted when a participant exits.
-*   `new-message` (Payload: `PopulatedMessageDoc`): Emitted to all room connections upon a successful message commit.
-*   `user-typing` (Payload: `{ userId, userName, isTyping }`): Broadcasts typing state to other chatters.
-*   `error` (Payload: `{ message }`): Delivers server exceptions to the calling socket.
-
----
-
-## ⚠️ Important Troubleshooting Notes
-
-### 1. MongoDB Session Participant Role Validation
-The Session schema enforces role enums at the database level:
-*   **Valid Roles:** `['speaker', 'listener', 'moderator']`
-*   **Important Check:** Make sure you do not pass generic terms like `user` or `admin` in the body of `joinSession` requests. Invalid values will trigger database validation errors. Default roles default to `listener`. See [SCHEMA_CONTROLLER_MISMATCH.md](file:///backend/SCHEMA_CONTROLLER_MISMATCH.md) for background details.
-
-### 2. Stripe Webhook Signature Check
-*   The Stripe webhooks route (`/api/v1/webhooks`) requires the raw payload request to verify cryptographic signatures.
-*   In `backend/index.js`, **always declare `/api/v1/webhooks` before** declaring `app.use(express.json())`. Declaring it afterwards parses the request body as JSON, corrupting signature verification and returning `Webhook Error: Signature verification failed`.
-
-### 3. Local Stripe Webhook Testing
-To capture Stripe webhook events locally, download the [Stripe CLI](https://stripe.com/docs/stripe-cli) and forward events:
 ```bash
-stripe login
-stripe listen --forward-to localhost:3000/api/v1/webhooks
+cd rebuilt
+npm install
+cp .env.example .env   # or create manually — see table below
+npx prisma migrate deploy
+npm run dev            # http://localhost:3000
 ```
-Then copy the `whsec_...` signing secret into your backend configuration `.env` file under `STRIPE_WEBHOOK_SECRET`.
+
+### 2. Frontend
+
+```bash
+cd frontend
+npm install
+npm start              # http://localhost:3001
+```
+
+Frontend `.env`:
+
+```env
+REACT_APP_API_URL=http://localhost:3000/api/v1
+```
+
+### Environment Variables (`rebuilt/.env`)
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | JWT signing secret |
+| `PORT` | Server port (default `3000`) |
+| `NODE_ENV` | `development` / `production` |
+| `BASE_URL` `FRONTEND_URL` `FRONTEND_URI` | CORS origins + Stripe redirect base (`http://localhost:3001`) |
+| `ADMIN_EMAIL` `ADMIN_PASSWORD` | Seeded admin account |
+| `MAIL_HOST` `MAIL_PORT` `MAIL_USERNAME` `MAIL_PASSWORD` | SMTP (optional — emails skipped if unset) |
+| `STRIPE_SECRET_KEY` | `sk_test_...` |
+| `STRIPE_WEBHOOK_SECRET` | `whsec_...` from Stripe CLI |
+| `PAYMENT_SERVICE_MOCK` | `true` → mock the legacy payment microservice |
+| `PAYMENT_SERVICE_URL` `PAYMENT_SERVICE_API_KEY` `PAYMENT_SERVICE_TIMEOUT_MS` | External payment service (ignored when mocking) |
+
+---
+
+## 📡 REST API Overview
+
+Base: `/api/v1` — auth via `Authorization: Bearer <jwt>` unless noted.
+
+| Module | Key Endpoints | Access |
+|---|---|---|
+| **Auth** | `POST /auth/register` · `/login` · `/forgot-password` · `/reset-password` | Public |
+| **Users** | `GET /users/profile` · profile update · avatar upload | JWT |
+| **Plans** | `GET /plans` · `POST /plans` · `PUT /plans/:id` · `DELETE /plans/:id` | Read public; write **admin** |
+| **Subscriptions** | `POST /createFreeSubscription/:userId` · `POST /purchase` (Stripe) · `GET /getUserSubscription` · `PUT /renewSubscription/:id` · `PUT /cancelSubscription/:id` · activate/deactivate/upgrade | Mixed |
+| **Payments** | `GET /payments/history` · `GET /payments/status/:txn` · `POST /payments/create` · `POST /payments/process-subscription` (mock) · `POST /payments/checkout` · `POST /payments/webhook/stripe` (raw body) · `GET /payments/all` | JWT / admin |
+| **Sessions** | `POST /sessions/create` · `GET /sessions` · `GET /sessions/:id` · `PUT/DELETE /sessions/:id` · `POST /:id/join` · `/:id/start` · `/:id/end` · `/:id/leave` · `/:id/toggle-recording` · `/:id/toggle-screen-share` | host+admin for management |
+| **Recordings** | `/recordings/*` — start/stop/list/download | JWT |
+| **Chat** | `/chat/*` history + send/delete | session members |
+| **Collaboration** | `/interview/*` · `/webinar/*` · whiteboard · code-editor · polls · Q&A | JWT |
+
+---
+
+## 💳 Stripe Payment Flow
+
+```mermaid
+sequenceDiagram
+    participant U as User (React)
+    participant B as Backend
+    participant S as Stripe
+    participant DB as PostgreSQL
+
+    U->>B: POST /subscriptions/purchase { planId }
+    B->>DB: Payment (PENDING) + PaymentAttempt (STRIPE)
+    B->>S: checkout.sessions.create
+    B-->>U: { url: checkout.stripe.com/... }
+    U->>S: Enter card & pay
+    S->>B: POST /payments/webhook/stripe (checkout.session.completed)
+    B->>DB: Payment → SUCCEEDED · Subscription → ACTIVE
+    S-->>U: Redirect → /subscription?payment=success
+```
+
+Local webhook forwarding:
+
+```bash
+stripe listen --forward-to localhost:3000/api/v1/payments/webhook/stripe
+# copy the printed whsec_... into STRIPE_WEBHOOK_SECRET, restart backend
+```
+
+Test card: `4242 4242 4242 4242` — any future expiry, any CVC.
+
+---
+
+## 🔌 Socket.IO Events
+
+Connect to `http://localhost:3000` (JWT in auth). Session room = `sessionId`.
+
+### Client → Server
+| Event | Payload | Purpose |
+|---|---|---|
+| `join-session` | `{ sessionId }` | Join room, get `session-state` |
+| `send-message` | `{ sessionId, message, type }` | Persist + broadcast chat |
+| `typing-start` / `typing-stop` | `{ sessionId }` | Typing indicators |
+| `webrtc-offer` / `webrtc-answer` / `webrtc-ice-candidate` | signaling payloads | Full-mesh peer setup |
+
+### Server → Client
+| Event | Purpose |
+|---|---|
+| `session-state` | Room snapshot on join (confirms membership) |
+| `user-joined` / `user-left` | Participant notifications |
+| `new-message` / `receive-message` | Chat delivery |
+| `user-typing` | `{ userId, userName, isTyping }` |
+| `session-ended` | Host/admin ended the session |
+
+---
+
+## 🧪 Scripts
+
+```bash
+npm run dev        # tsx watch (dev)
+npm run build      # tsc → dist/
+npm start          # node dist/index.js
+npm test           # jest
+npx prisma studio  # DB GUI
+npx prisma migrate dev|deploy|status
+```
+
+---
+
+## ⚠️ Troubleshooting
+
+*   **`Payment mock is enabled in production`** — `PAYMENT_SERVICE_MOCK=true` requires `NODE_ENV=development`.
+*   **`invalid input value for enum "PaymentStatus": "SUCCEEDED"`** — DB enum is stale; run `prisma/fix_payment_status_enum.sql` via `npx prisma db execute --file ...`.
+*   **`Connection terminated unexpectedly` (Neon)** — idle connections dropped by serverless Postgres; handled by the pool `error` listener — retry the request.
+*   **Stripe webhook `Signature verification failed`** — the webhook route is mounted **before** `express.json()` to preserve the raw body; don't reorder, and set `STRIPE_WEBHOOK_SECRET`.
+*   **CORS errors from `localhost:3001`** — add the origin to `BASE_URL`/`FRONTEND_URL`/`FRONTEND_URI` in `.env`.
 
 ---
 
 ## 📄 License
-This codebase is distributed under the MIT License.
+
+MIT
